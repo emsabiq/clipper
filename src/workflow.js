@@ -7,6 +7,7 @@ import { appendHistory, publishedCountToday } from "./history.js";
 import { addVideo, createJobRecord, selectNextVideo, updateVideoStatus } from "./selector.js";
 import { runClipper } from "./clipper-runner.js";
 import { generateCaption, generateFrameQuoteText, generateThumbnailText } from "./caption.js";
+import { ensureCaptionSourceCredit } from "./caption-policy.js";
 import { generateThumbnail, prependThumbnailIntro } from "./thumbnail.js";
 import { fileExists, uploadHistoryFile, uploadJobFiles, validatePublicUrl } from "./uploader.js";
 import { publishReel } from "./instagram.js";
@@ -39,6 +40,17 @@ export async function runWorkflow(options = {}) {
     throw error;
   }
 
+  const remoteCheck = preflight.checks.find((check) => check.name === config.ftp.label);
+  if (remoteCheck && !remoteCheck.ok && !remoteCheck.required) {
+    const driver = config.uploadDriver;
+    config.uploadDriver = "local";
+    await appendLog("remote_upload_disabled", {
+      driver,
+      reason: remoteCheck.detail || "remote storage preflight failed"
+    });
+    console.warn(`${config.ftp.label} preflight warning; remote upload dinonaktifkan untuk run ini.`);
+  }
+
   await downloadStateFromRemote().catch((error) => {
     console.warn(`State remote dilewati: ${error.message}`);
   });
@@ -64,82 +76,218 @@ export async function runWorkflow(options = {}) {
     }
   }
 
-  let selection = null;
   let discoveryResult = null;
+  const keepVideoQueued = !options.url && !options.scheduled;
 
   if (options.url) {
-    selection = await createManualSelection(options);
-  } else {
-    try {
-      discoveryResult = await discoverAndQueueVideos({
-        theme: options.theme || config.defaultTheme,
-        targetDate: todayDate(),
-        ignoreDailyQueueLimit: !options.scheduled
-      });
-      await appendLog("discovery_result", {
-        skipped: Boolean(discoveryResult?.skipped),
-        reason: discoveryResult?.reason || "",
-        added_count: discoveryResult?.added?.length || 0,
-        expired_count: discoveryResult?.expired_count || 0,
-        daily_queue_count: discoveryResult?.daily_queue_count || 0,
-        daily_queue_limit: discoveryResult?.daily_queue_limit || 0,
-        added_video_ids: (discoveryResult?.added || []).map((video) => video.id)
-      });
-    } catch (error) {
-      console.warn(`Auto discovery gagal, fallback ke antrean lama: ${error.message}`);
-      await appendLog("discovery_failed", { error: error.message });
+    const selection = await createManualSelection(options);
+    if (!selection) {
+      return noVideoSelectedResult({ discoveryResult, failedSelections: [] });
     }
+    return processSelectedWorkflow({
+      selection,
+      options,
+      scheduledDailyLimit,
+      scheduledPostedToday,
+      keepVideoQueued: false
+    });
+  }
 
-    const discoveredVideoIds = (discoveryResult?.added || [])
-      .map((video) => video.id)
-      .filter(Boolean);
+  let discoveryAttempted = false;
+  let discoveredVideoIds = [];
+  const failedSelections = [];
+  const excludedVideoIds = new Set();
+  const maxAttempts = queueFailoverLimit();
 
-    if (discoveredVideoIds.length) {
-      selection = await selectNextVideo({
-        theme: options.theme || config.defaultTheme,
-        preferredVideoIds: discoveredVideoIds,
-        forceReprocess: options.forceReprocess === true
-      });
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    let selection = await selectQueuedWorkflowVideo({ options, excludedVideoIds });
+
+    if (!selection && !discoveryAttempted) {
+      discoveryAttempted = true;
+      discoveryResult = await discoverQueuedVideos(options);
+      discoveredVideoIds = (discoveryResult?.added || [])
+        .map((video) => video.id)
+        .filter(Boolean);
+
+      if (discoveredVideoIds.length) {
+        selection = await selectQueuedWorkflowVideo({
+          options,
+          excludedVideoIds,
+          preferredVideoIds: discoveredVideoIds
+        });
+      }
+
+      if (!selection) {
+        selection = await selectQueuedWorkflowVideo({ options, excludedVideoIds });
+      }
     }
 
     if (!selection) {
-      selection = await selectNextVideo({
-        theme: options.theme || config.defaultTheme,
-        forceReprocess: options.forceReprocess === true
+      return noVideoSelectedResult({ discoveryResult, failedSelections });
+    }
+
+    try {
+      const result = await processSelectedWorkflow({
+        selection,
+        options,
+        scheduledDailyLimit,
+        scheduledPostedToday,
+        keepVideoQueued
       });
+      if (failedSelections.length) {
+        return {
+          ...result,
+          skipped_failed_video_count: failedSelections.length,
+          skipped_failed_videos: failedSelections
+        };
+      }
+      return result;
+    } catch (error) {
+      const failed = summarizeFailedSelection(selection, error);
+      failedSelections.push(failed);
+      excludedVideoIds.add(selection.video.id);
+      await appendLog("queue_video_failed_skip", {
+        attempt,
+        max_attempts: maxAttempts,
+        ...failed
+      });
+      console.warn(`Video antrean gagal, dilewati: ${error.message}`);
     }
   }
 
-  if (!selection) {
-    await appendLog("no_video_selected", {
-      discovery_added_count: discoveryResult?.added?.length || 0,
-      discovery_skipped: Boolean(discoveryResult?.skipped),
-      discovery_reason: discoveryResult?.reason || "",
-      discovery_expired_count: discoveryResult?.expired_count || 0,
-      daily_queue_count: discoveryResult?.daily_queue_count || 0,
-      daily_queue_limit: discoveryResult?.daily_queue_limit || 0
-    });
-    return {
-      status: "no_video_selected",
-      discovery_added_count: discoveryResult?.added?.length || 0,
-      discovery_skipped: Boolean(discoveryResult?.skipped),
-      discovery_reason: discoveryResult?.reason || "",
-      discovery_expired_count: discoveryResult?.expired_count || 0,
-      daily_queue_count: discoveryResult?.daily_queue_count || 0,
-      daily_queue_limit: discoveryResult?.daily_queue_limit || 0
-    };
-  }
+  await uploadStateToRemote().catch(() => {});
+  await appendLog("queue_failover_exhausted", {
+    failed_video_count: failedSelections.length,
+    failed_videos: failedSelections
+  });
+  return {
+    status: "queue_failed",
+    failed_video_count: failedSelections.length,
+    failed_videos: failedSelections
+  };
+}
 
+async function createManualSelection(options) {
+  const video = await addVideo({
+    url: options.url,
+    theme: options.theme && options.theme !== "auto" ? options.theme : "podcast artis",
+    target_date: todayDate(),
+    priority: 0,
+    manual_range: options.range || "",
+    quality_profile: options.qualityProfile || "standard",
+    clip_count: Number(options.clipCount || process.env.CLIP_COUNT || 1),
+    scene_mode: options.sceneMode || "podcast",
+    subtitle_font: options.subtitleFont || "Segoe UI Semibold",
+    subtitle_font_size: options.subtitleFontSize || 46,
+    subtitle_margin_v: options.subtitleMarginV || 550,
+    subtitle_margin_h: options.subtitleMarginH || 180,
+    use_frame: options.useFrame,
+    use_filter: options.useFilter,
+    use_watermark: options.useWatermark,
+    use_music: options.useMusic,
+    force_reprocess: options.forceReprocess === true,
+    notes: "Ditambahkan dari CLI/manual run"
+  });
+  return selectNextVideo({
+    theme: video.theme,
+    targetDate: todayDate(),
+    preferredVideoIds: [video.id],
+    forceReprocess: options.forceReprocess === true
+  });
+}
+
+function queueFailoverLimit() {
+  const configured = Number(process.env.QUEUE_FAILOVER_ATTEMPTS || process.env.MAX_SCHEDULED_POSTS_PER_DAY || 15);
+  if (!Number.isFinite(configured) || configured <= 0) return 15;
+  return Math.min(Math.floor(configured), 50);
+}
+
+function summarizeFailedSelection(selection, error) {
+  return {
+    video_id: selection?.video?.id || "",
+    youtube_video_id: selection?.video?.youtube_video_id || "",
+    url: selection?.video?.url || selection?.video?.source_url || "",
+    error: error.message
+  };
+}
+
+async function selectQueuedWorkflowVideo({ options, excludedVideoIds, preferredVideoIds = [] }) {
+  return selectNextVideo({
+    theme: options.theme || config.defaultTheme,
+    preferredVideoIds,
+    excludeVideoIds: [...excludedVideoIds],
+    forceReprocess: options.forceReprocess === true,
+    randomize: true
+  });
+}
+
+async function discoverQueuedVideos(options) {
+  try {
+    const discoveryResult = await discoverAndQueueVideos({
+      theme: options.theme || config.defaultTheme,
+      targetDate: todayDate(),
+      ignoreDailyQueueLimit: !options.scheduled
+    });
+    await appendLog("discovery_result", {
+      skipped: Boolean(discoveryResult?.skipped),
+      reason: discoveryResult?.reason || "",
+      added_count: discoveryResult?.added?.length || 0,
+      expired_count: discoveryResult?.expired_count || 0,
+      daily_queue_count: discoveryResult?.daily_queue_count || 0,
+      daily_queue_limit: discoveryResult?.daily_queue_limit || 0,
+      added_video_ids: (discoveryResult?.added || []).map((video) => video.id)
+    });
+    return discoveryResult;
+  } catch (error) {
+    console.warn(`Auto discovery gagal, fallback ke antrean lama: ${error.message}`);
+    await appendLog("discovery_failed", { error: error.message });
+    return null;
+  }
+}
+
+async function noVideoSelectedResult({ discoveryResult, failedSelections }) {
+  await appendLog("no_video_selected", {
+    discovery_added_count: discoveryResult?.added?.length || 0,
+    discovery_skipped: Boolean(discoveryResult?.skipped),
+    discovery_reason: discoveryResult?.reason || "",
+    discovery_expired_count: discoveryResult?.expired_count || 0,
+    daily_queue_count: discoveryResult?.daily_queue_count || 0,
+    daily_queue_limit: discoveryResult?.daily_queue_limit || 0,
+    skipped_failed_video_count: failedSelections.length
+  });
+  return {
+    status: "no_video_selected",
+    discovery_added_count: discoveryResult?.added?.length || 0,
+    discovery_skipped: Boolean(discoveryResult?.skipped),
+    discovery_reason: discoveryResult?.reason || "",
+    discovery_expired_count: discoveryResult?.expired_count || 0,
+    daily_queue_count: discoveryResult?.daily_queue_count || 0,
+    daily_queue_limit: discoveryResult?.daily_queue_limit || 0,
+    skipped_failed_video_count: failedSelections.length,
+    skipped_failed_videos: failedSelections
+  };
+}
+
+async function processSelectedWorkflow({ selection, options, scheduledDailyLimit, scheduledPostedToday, keepVideoQueued = false }) {
   const { video, theme, prompt } = selection;
-  const job = await createJobRecord(selection);
-  await appendLog("job_created", { job_id: job.job_id, video_id: video.id, url: video.url });
+  const job = await createJobRecord(selection, { keepVideoStatus: keepVideoQueued });
+  const maybeUpdateVideoStatus = async (status, patch) => {
+    if (keepVideoQueued) return;
+    await updateVideoStatus(video.id, status, patch);
+  };
+  await appendLog("job_created", {
+    job_id: job.job_id,
+    video_id: video.id,
+    url: video.url,
+    keep_video_queued: keepVideoQueued
+  });
 
   try {
     await updateJob(job.job_id, {
       status: "clipper_processing",
       clipper_status: "processing"
     });
-    await updateVideoStatus(video.id, "clipper_processing");
+    await maybeUpdateVideoStatus("clipper_processing");
 
     const clipperResult = await runClipper({
       video,
@@ -259,7 +407,7 @@ export async function runWorkflow(options = {}) {
       published_at: final.publishedClips > 0 ? new Date().toISOString() : ""
     });
 
-    await updateVideoStatus(video.id, final.videoStatus, {
+    await maybeUpdateVideoStatus(final.videoStatus, {
       youtube_video_id: lastPlatformResults.youtube?.videoId || video.youtube_video_id,
       youtube_url: lastPlatformResults.youtube?.url || "",
       instagram_media_id: lastPlatformResults.instagram?.mediaId || "",
@@ -295,39 +443,11 @@ export async function runWorkflow(options = {}) {
       status: "failed",
       error_message: error.message
     });
-    await updateVideoStatus(video.id, "failed", { error_message: error.message });
+    await maybeUpdateVideoStatus("failed", { error_message: error.message });
     await uploadStateToRemote().catch(() => {});
     await appendLog("workflow_failed", { job_id: job.job_id, error: error.message });
     throw error;
   }
-}
-
-async function createManualSelection(options) {
-  const video = await addVideo({
-    url: options.url,
-    theme: options.theme && options.theme !== "auto" ? options.theme : "podcast artis",
-    target_date: todayDate(),
-    priority: 0,
-    manual_range: options.range || "",
-    quality_profile: options.qualityProfile || "standard",
-    clip_count: Number(options.clipCount || process.env.CLIP_COUNT || 1),
-    scene_mode: options.sceneMode || "podcast",
-    subtitle_font: options.subtitleFont || "Segoe UI Semibold",
-    subtitle_font_size: options.subtitleFontSize || 46,
-    subtitle_margin_v: options.subtitleMarginV || 550,
-    subtitle_margin_h: options.subtitleMarginH || 180,
-    use_frame: options.useFrame,
-    use_filter: options.useFilter,
-    use_watermark: options.useWatermark,
-    use_music: options.useMusic,
-    force_reprocess: options.forceReprocess === true,
-    notes: "Ditambahkan dari CLI/manual run"
-  });
-  return selectNextVideo({
-    theme: video.theme,
-    targetDate: todayDate(),
-    forceReprocess: options.forceReprocess === true
-  });
 }
 
 async function processClipOutput({ job, video, theme, prompt, output, clipperResult, index, total, options }) {
@@ -356,12 +476,16 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
     frame_quote_text: frameQuoteText
   });
 
-  const caption = await generateCaption({
+  const generatedCaption = await generateCaption({
     job: storageJob,
     output,
     promptTemplate: prompt,
     clipperRoot: clipperResult.clipperRoot,
     aiProvider
+  });
+  const caption = ensureCaptionSourceCredit(generatedCaption, {
+    sourceUrl: video.url || video.source_url,
+    sourceTitle: video.source_title || output.title || job.source_title
   });
   await updateJob(job.job_id, {
     caption_status: "done",
@@ -422,14 +546,28 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
     metadataUrl: ""
   };
   if (shouldUploadToRemote()) {
-    upload = await uploadJobFiles({
-      job: storageJob,
-      videoPath: output.finalAbsPath,
-      thumbnailPath: thumbnail.path,
-      metadataPath
-    });
-    const videoPublicOk = await validatePublicUrl(upload.videoUrl);
-    if (!videoPublicOk) throw new Error(`Public video URL belum valid: ${upload.videoUrl}`);
+    try {
+      upload = await uploadJobFiles({
+        job: storageJob,
+        videoPath: output.finalAbsPath,
+        thumbnailPath: thumbnail.path,
+        metadataPath
+      });
+      const videoPublicOk = await validatePublicUrl(upload.videoUrl);
+      if (!videoPublicOk) throw new Error(`Public video URL belum valid: ${upload.videoUrl}`);
+    } catch (error) {
+      if (config.remoteUploadRequired || !config.youtube.enabled) throw error;
+      await appendLog("remote_upload_failed_skip", {
+        job_id: storageJob.job_id,
+        error: error.message
+      });
+      console.warn(`${config.ftp.label} upload gagal; lanjut YouTube tanpa public URL: ${error.message}`);
+      upload = {
+        videoUrl: "",
+        thumbnailUrl: "",
+        metadataUrl: ""
+      };
+    }
   }
   console.log(`Public video URL valid clip ${clipIndex}/${total}:`, upload.videoUrl);
 
@@ -639,6 +777,10 @@ async function updateJob(jobId, patch) {
 }
 
 async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
+  const publishCaption = ensureCaptionSourceCredit(caption, {
+    sourceUrl: job.source_url,
+    sourceTitle: job.source_title || output.title
+  });
   const platformResults = {
     instagram: null,
     facebook: null,
@@ -654,7 +796,7 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
   if (config.youtube.enabled) {
     platformResults.youtube = await publishPlatform("youtube", platformResults, job.job_id, async () => {
       await updateJob(job.job_id, { youtube_status: "processing", youtube_error: "" });
-      const youtubeMetadata = buildYoutubeMetadata({ job, output, caption });
+      const youtubeMetadata = buildYoutubeMetadata({ job, output, caption: publishCaption });
       return publishToYoutube({
         videoPath: output.finalAbsPath,
         thumbnailPath: thumbnail?.path || "",
@@ -674,7 +816,7 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
         videoUrl: upload.videoUrl,
         videoPath: output.finalAbsPath,
         title: output.title || job.source_title || "Podcast Clip",
-        description: caption,
+        description: publishCaption,
         thumbnailPath: thumbnail?.path || ""
       });
     });
@@ -691,7 +833,7 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
       });
       return publishReel({
         videoUrl: instagramVideo.videoUrl,
-        caption,
+        caption: publishCaption,
         coverUrl: upload.thumbnailUrl || ""
       });
     });
@@ -704,7 +846,7 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
       return publishToTikTok({
         videoUrl: upload.videoUrl,
         videoPath: output.finalAbsPath,
-        caption
+        caption: publishCaption
       });
     });
   }
@@ -715,7 +857,11 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
       await updateJob(job.job_id, { threads_status: "processing", threads_error: "" });
       return publishToThreads({
         videoUrl: upload.videoUrl,
-        caption
+        caption: ensureCaptionSourceCredit(publishCaption, {
+          sourceUrl: job.source_url,
+          sourceTitle: job.source_title || output.title,
+          maxLength: 500
+        })
       });
     });
   }
