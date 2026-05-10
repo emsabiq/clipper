@@ -9,6 +9,7 @@ import { downloadStateFromRemote, uploadStateToRemote } from "./state-sync.js";
 import { buildYoutubeMetadata, isYoutubeQuotaError, publishToYoutube, setYoutubeThumbnail } from "./youtube-publisher.js";
 import { publishToTikTok } from "./tiktok.js";
 import { publishToThreads } from "./threads.js";
+import { ensureCaptionSourceCredit } from "./caption-policy.js";
 
 function argValue(name, fallback = "") {
   const index = process.argv.indexOf(name);
@@ -39,6 +40,17 @@ async function patchVideo(videoId, patch) {
   videos[index] = { ...videos[index], ...patch, updated_at: new Date().toISOString() };
   await writeJson("videos", videos);
   return videos[index];
+}
+
+function enrichJobWithSource(job, video) {
+  return {
+    ...job,
+    source_url: job.source_url || video?.source_url || video?.url || "",
+    source_youtube_video_id: job.source_youtube_video_id || video?.youtube_video_id || "",
+    source_title: video?.source_title || job.source_title || "",
+    source_channel: job.source_channel || job.channel_title || video?.source_channel || video?.channel_title || "",
+    channel_title: job.channel_title || job.source_channel || video?.channel_title || video?.source_channel || ""
+  };
 }
 
 async function resolveThumbnailPath(job) {
@@ -103,6 +115,9 @@ await downloadStateFromRemote().catch((error) => {
 
 const jobs = await readJson("jobs", []);
 const job = jobId ? jobs.find((item) => item.job_id === jobId) : latestReadyJob(jobs);
+const videos = await readJson("videos", []);
+const sourceVideo = job ? videos.find((item) => item.id === job.video_id) : null;
+const jobWithSource = job ? enrichJobWithSource(job, sourceVideo) : null;
 
 if (!job) {
   console.error("Tidak ada job ready_to_publish.");
@@ -164,22 +179,27 @@ let threads = job.threads_media_id ? {
 } : null;
 
 try {
-  const thumbnailPath = await resolveThumbnailPath(job);
-  const videoPath = await resolveVideoPath(job);
+  const thumbnailPath = await resolveThumbnailPath(jobWithSource);
+  const videoPath = await resolveVideoPath(jobWithSource);
+  const publishCaption = ensureCaptionSourceCredit(jobWithSource.caption || "", {
+    sourceUrl: jobWithSource.source_url,
+    sourceTitle: jobWithSource.source_title,
+    maxLength: 2200
+  });
   const output = {
-    title: job.source_title,
-    hook: job.source_title,
+    title: jobWithSource.source_title || jobWithSource.clip_title,
+    hook: jobWithSource.source_title || jobWithSource.clip_title,
     finalAbsPath: videoPath,
-    caption: job.caption || "",
-    clipTranscript: job.clipTranscript || "",
-    selectedAngle: job.selectedAngle || ""
+    caption: publishCaption,
+    clipTranscript: jobWithSource.clipTranscript || "",
+    selectedAngle: jobWithSource.selectedAngle || ""
   };
 
   if (!onlyYoutubeThumbnail && config.youtube.enabled && (!youtube || forceYoutube)) {
     const metadata = buildYoutubeMetadata({
-      job,
+      job: jobWithSource,
       output,
-      caption: job.caption || ""
+      caption: publishCaption
     });
     youtube = await publishToYoutube({
       videoPath,
@@ -230,7 +250,7 @@ try {
     if (!job.public_video_url) throw new Error("public_video_url kosong, Instagram butuh URL video publik dari remote storage.");
     instagram = await publishReel({
       videoUrl: job.public_video_url,
-      caption: job.caption || ""
+      caption: publishCaption
     });
   }
 
@@ -239,7 +259,7 @@ try {
     tiktok = await publishToTikTok({
       videoUrl: job.public_video_url,
       videoPath,
-      caption: job.caption || ""
+      caption: publishCaption
     });
   }
 
@@ -247,7 +267,11 @@ try {
     if (!job.public_video_url) throw new Error("public_video_url kosong, Threads butuh URL video publik dari remote storage.");
     threads = await publishToThreads({
       videoUrl: job.public_video_url,
-      caption: job.caption || ""
+      caption: ensureCaptionSourceCredit(publishCaption, {
+        sourceUrl: jobWithSource.source_url,
+        sourceTitle: jobWithSource.source_title,
+        maxLength: 500
+      })
     });
   }
 
@@ -259,6 +283,12 @@ try {
   await patchItem("jobs", job.job_id, {
     status: "published",
     publish_status: "published",
+    caption: publishCaption,
+    source_url: jobWithSource.source_url,
+    source_youtube_video_id: jobWithSource.source_youtube_video_id,
+    source_title: jobWithSource.source_title,
+    source_channel: jobWithSource.source_channel,
+    channel_title: jobWithSource.channel_title,
     youtube_status: youtube ? "published" : "disabled",
     youtube_video_id: youtube?.videoId || "",
     youtube_url: youtube?.url || "",
@@ -287,14 +317,17 @@ try {
   await appendHistory({
     job_id: job.job_id,
     video_id: job.video_id,
-    source_url: job.source_url,
+    source_url: jobWithSource.source_url,
+    source_youtube_video_id: jobWithSource.source_youtube_video_id,
+    source_title: jobWithSource.source_title,
+    source_channel: jobWithSource.source_channel,
     youtube_video_id: job.youtube_video_id,
     theme: job.theme,
     status: "published",
     final_video_path: job.final_video_path,
     public_video_url: job.public_video_url || "",
     public_thumbnail_url: job.public_thumbnail_url || "",
-    caption: job.caption || "",
+    caption: publishCaption,
     instagram_media_id: instagram?.mediaId || "",
     tiktok_publish_id: tiktok?.publishId || "",
     tiktok_mode: tiktok?.mode || "",
