@@ -2,7 +2,7 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import axios from "axios";
 import { config } from "./config.js";
-import { buildSourceCreditBlock, ensureCaptionSourceCredit } from "./caption-policy.js";
+import { buildSourceCreditBlock, ensureCaptionSourceCredit, stripCaptionSourceCredit } from "./caption-policy.js";
 import { extractYoutubeVideoId } from "./youtube.js";
 
 const tokenUrl = "https://oauth2.googleapis.com/token";
@@ -176,7 +176,10 @@ export async function getYoutubeChannel() {
 
 export function buildYoutubeMetadata({ job, output, caption }) {
   const source = youtubeSourceDetails({ job, output });
-  const creditedCaption = ensureCaptionSourceCredit(caption, {
+  const cleanCaption = stripCaptionSourceCredit(caption, {
+    sourceUrl: source.sourceUrl
+  });
+  const creditedCaption = ensureCaptionSourceCredit(cleanCaption, {
     sourceUrl: source.sourceUrl,
     sourceTitle: source.sourceTitle,
     sourceChannel: source.sourceChannel,

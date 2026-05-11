@@ -70,6 +70,27 @@ export function ensureCaptionSourceCredit(caption, {
   });
 }
 
+export function stripCaptionSourceCredit(caption, {
+  sourceUrl = ""
+} = {}) {
+  const url = normalizeLine(sourceUrl);
+  const cleaned = normalizeCaption(caption);
+  if (!cleaned) return "";
+
+  return normalizeCaption(cleaned
+    .split("\n")
+    .filter((line) => {
+      const value = normalizeLine(line);
+      if (!value) return true;
+      if (url && value.includes(url)) return false;
+      if (/^(source\s+(channel|video|link)|youtube\s+attribution)\s*:/i.test(value)) return false;
+      if (/^sumber\s+lengkap\s*:/i.test(value)) return false;
+      if (value === SOURCE_CREDIT_NOTE) return false;
+      return true;
+    })
+    .join("\n"));
+}
+
 function normalizeLine(value) {
   return String(value || "")
     .replace(/\s+/g, " ")

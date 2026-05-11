@@ -9,7 +9,7 @@ import { downloadStateFromRemote, uploadStateToRemote } from "./state-sync.js";
 import { buildYoutubeMetadata, isYoutubeQuotaError, publishToYoutube, setYoutubeThumbnail } from "./youtube-publisher.js";
 import { publishToTikTok } from "./tiktok.js";
 import { publishToThreads } from "./threads.js";
-import { ensureCaptionSourceCredit } from "./caption-policy.js";
+import { stripCaptionSourceCredit } from "./caption-policy.js";
 
 function argValue(name, fallback = "") {
   const index = process.argv.indexOf(name);
@@ -181,16 +181,14 @@ let threads = job.threads_media_id ? {
 try {
   const thumbnailPath = await resolveThumbnailPath(jobWithSource);
   const videoPath = await resolveVideoPath(jobWithSource);
-  const publishCaption = ensureCaptionSourceCredit(jobWithSource.caption || "", {
-    sourceUrl: jobWithSource.source_url,
-    sourceTitle: jobWithSource.source_title,
-    maxLength: 2200
+  const socialCaption = stripCaptionSourceCredit(jobWithSource.caption || "", {
+    sourceUrl: jobWithSource.source_url
   });
   const output = {
     title: jobWithSource.source_title || jobWithSource.clip_title,
     hook: jobWithSource.source_title || jobWithSource.clip_title,
     finalAbsPath: videoPath,
-    caption: publishCaption,
+    caption: socialCaption,
     clipTranscript: jobWithSource.clipTranscript || "",
     selectedAngle: jobWithSource.selectedAngle || ""
   };
@@ -199,7 +197,7 @@ try {
     const metadata = buildYoutubeMetadata({
       job: jobWithSource,
       output,
-      caption: publishCaption
+      caption: socialCaption
     });
     youtube = await publishToYoutube({
       videoPath,
@@ -250,7 +248,7 @@ try {
     if (!job.public_video_url) throw new Error("public_video_url kosong, Instagram butuh URL video publik dari remote storage.");
     instagram = await publishReel({
       videoUrl: job.public_video_url,
-      caption: publishCaption
+      caption: socialCaption
     });
   }
 
@@ -259,7 +257,7 @@ try {
     tiktok = await publishToTikTok({
       videoUrl: job.public_video_url,
       videoPath,
-      caption: publishCaption
+      caption: socialCaption
     });
   }
 
@@ -267,11 +265,7 @@ try {
     if (!job.public_video_url) throw new Error("public_video_url kosong, Threads butuh URL video publik dari remote storage.");
     threads = await publishToThreads({
       videoUrl: job.public_video_url,
-      caption: ensureCaptionSourceCredit(publishCaption, {
-        sourceUrl: jobWithSource.source_url,
-        sourceTitle: jobWithSource.source_title,
-        maxLength: 500
-      })
+      caption: socialCaption
     });
   }
 
@@ -283,7 +277,7 @@ try {
   await patchItem("jobs", job.job_id, {
     status: "published",
     publish_status: "published",
-    caption: publishCaption,
+    caption: socialCaption,
     source_url: jobWithSource.source_url,
     source_youtube_video_id: jobWithSource.source_youtube_video_id,
     source_title: jobWithSource.source_title,
@@ -327,7 +321,7 @@ try {
     final_video_path: job.final_video_path,
     public_video_url: job.public_video_url || "",
     public_thumbnail_url: job.public_thumbnail_url || "",
-    caption: publishCaption,
+    caption: socialCaption,
     instagram_media_id: instagram?.mediaId || "",
     tiktok_publish_id: tiktok?.publishId || "",
     tiktok_mode: tiktok?.mode || "",
