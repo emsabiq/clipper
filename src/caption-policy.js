@@ -1,5 +1,6 @@
 const DEFAULT_MAX_CAPTION_LENGTH = 2200;
 const SOURCE_CREDIT_NOTE = "Credit: highlight dari video sumber.";
+const YOUTUBE_URL_RE = /https?:\/\/(?:www\.|m\.)?(?:youtube\.com|youtu\.be)\/[^\s)]+/gi;
 
 export function buildSourceCreditBlock({
   sourceUrl = "",
@@ -79,12 +80,18 @@ export function stripCaptionSourceCredit(caption, {
 
   return normalizeCaption(cleaned
     .split("\n")
+    .map((line) => line
+      .replace(YOUTUBE_URL_RE, "")
+      .replace(url, "")
+      .replace(/[ \t]{2,}/g, " ")
+      .trim())
     .filter((line) => {
       const value = normalizeLine(line);
       if (!value) return true;
-      if (url && value.includes(url)) return false;
       if (/^(source\s+(channel|video|link)|youtube\s+attribution)\s*:/i.test(value)) return false;
       if (/^sumber\s+lengkap\s*:/i.test(value)) return false;
+      if (/^sumber\s+video\s+lengkap\s*:/i.test(value)) return false;
+      if (/^terima\s+kasih\s+kepada\s+pemilik\s+podcast\s+sumber/i.test(value)) return false;
       if (value === SOURCE_CREDIT_NOTE) return false;
       return true;
     })

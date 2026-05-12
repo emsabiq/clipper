@@ -54,45 +54,26 @@ function normalize_text($value, $max = 2200) {
   return substr($text, 0, $max);
 }
 
-function caption_source_credit_block($video) {
-  $sourceUrl = trim((string) ($video['source_url'] ?? ''));
-  if ($sourceUrl === '') return '';
-  $sourceTitle = trim((string) ($video['source_title'] ?? $video['title'] ?? ''));
-  $lines = [];
-  if ($sourceTitle !== '') $lines[] = 'Sumber video lengkap: ' . $sourceTitle;
-  $lines[] = $sourceUrl;
-  $lines[] = 'Terima kasih kepada pemilik podcast sumber. Clip ini dibuat sebagai highlight dari podcast tersebut. Untuk versi lengkapnya, klik dan tonton video sumber di link di atas.';
-  return implode("\n", $lines);
+function strip_caption_source_credit($caption, $sourceUrl = '') {
+  $text = normalize_text($caption);
+  $sourceUrl = trim((string) $sourceUrl);
+  if ($sourceUrl !== '') $text = str_replace($sourceUrl, '', $text);
+  $text = preg_replace('~https?://(?:www\.|m\.)?(?:youtube\.com|youtu\.be)/\S+~i', '', $text);
+  $lines = preg_split("/\r?\n/", $text);
+  $lines = array_values(array_filter(array_map('trim', $lines), function ($line) {
+    if ($line === '') return true;
+    if (preg_match('/^(source\s+(channel|video|link)|youtube\s+attribution)\s*:/i', $line)) return false;
+    if (preg_match('/^sumber\s+(video\s+)?lengkap\s*:/i', $line)) return false;
+    if (preg_match('/^terima\s+kasih\s+kepada\s+pemilik\s+podcast\s+sumber/i', $line)) return false;
+    if (strcasecmp($line, 'Credit: highlight dari video sumber.') === 0) return false;
+    return true;
+  }));
+  return normalize_text(implode("\n", $lines));
 }
 
 function ensure_caption_source_credit($caption, $video, $max = 2200) {
   $sourceUrl = trim((string) ($video['source_url'] ?? ''));
-  $caption = normalize_text($caption, $max);
-  if ($sourceUrl === '') return $caption;
-
-  $hasSource = strpos($caption, $sourceUrl) !== false;
-  $hasThanks = preg_match('/terima\s+kasih/i', $caption) && preg_match('/(highlight|podcast|sumber)/i', $caption);
-  if ($hasSource && $hasThanks) return normalize_text($caption, $max);
-
-  $creditLines = [];
-  if (!$hasSource) {
-    $sourceTitle = trim((string) ($video['source_title'] ?? $video['title'] ?? ''));
-    if ($sourceTitle !== '') $creditLines[] = 'Sumber video lengkap: ' . $sourceTitle;
-    $creditLines[] = $sourceUrl;
-  }
-  if (!$hasThanks) {
-    $creditLines[] = 'Terima kasih kepada pemilik podcast sumber. Clip ini dibuat sebagai highlight dari podcast tersebut. Untuk versi lengkapnya, klik dan tonton video sumber di link di atas.';
-  }
-
-  $credit = implode("\n", $creditLines);
-  $separator = $caption !== '' ? "\n\n" : '';
-  $available = $max - strlen($separator) - strlen($credit);
-  if ($available < strlen($caption)) {
-    $caption = substr($caption, 0, max(0, $available));
-    $caption = trim(preg_replace('/\s+\S*$/', '', $caption));
-  }
-
-  return normalize_text(trim($caption . $separator . $credit), $max);
+  return normalize_text(strip_caption_source_credit($caption, $sourceUrl), $max);
 }
 
 function privacy_label($value) {
