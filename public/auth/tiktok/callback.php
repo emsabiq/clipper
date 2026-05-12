@@ -23,7 +23,7 @@ function e($value) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TikTok Callback</title>
+  <title>TikTok Authorization</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -46,7 +46,7 @@ function e($value) {
 </head>
 <body>
   <div class="box">
-    <h1>TikTok Callback</h1>
+    <h1>TikTok Authorization</h1>
 
     <?php if ($error): ?>
       <p>Login TikTok gagal.</p>
@@ -55,8 +55,8 @@ function e($value) {
         <p><strong>Detail:</strong> <?= e($errorDescription) ?></p>
       <?php endif; ?>
     <?php elseif ($code): ?>
-      <p>Authorization code diterima. Lanjutkan ke halaman login untuk menyelesaikan koneksi TikTok.</p>
-      <p><a href="<?= e($continueUrl) ?>">Continue to Login</a></p>
+      <p>Authorization code diterima. Lanjutkan ke halaman TikTok Direct Post untuk menyelesaikan koneksi.</p>
+      <p><a href="<?= e($continueUrl) ?>">Continue to TikTok Direct Post</a></p>
       <p>Jika perlu fallback manual, jalankan command ini di project lokal:</p>
       <textarea readonly>node src/tiktok-token-fastcheck.js --code "<?= e($code) ?>" --redirect-uri "<?= e($redirectUri) ?>" --persist-local</textarea>
       <p><strong>Redirect URI:</strong> <code><?= e($redirectUri) ?></code></p>

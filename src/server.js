@@ -10,6 +10,7 @@ import { makeId, todayDate } from "./job-id.js";
 import { downloadStateFromRemote, uploadStateToRemote } from "./state-sync.js";
 import { runPreflight } from "./preflight.js";
 import { exchangeTikTokCode, publishToTikTok } from "./tiktok.js";
+import { ensureCaptionSourceCredit } from "./caption-policy.js";
 import {
   buildYoutubeAuthUrl,
   exchangeYoutubeCode,
@@ -339,6 +340,7 @@ app.post("/api/settings", async (req, res) => {
 
 app.post("/api/preflight", async (_req, res) => {
   try {
+    reloadConfigFromEnv();
     const report = await runPreflight({
       online: true,
       aiOnline: false,
@@ -412,10 +414,15 @@ app.post("/api/tiktok/demo-publish", async (req, res) => {
     if (!config.tiktok.enabled) throw new Error("TIKTOK_UPLOAD_ENABLED=false.");
     const job = await latestTikTokDemoJob(String(req.body?.job_id || "").trim());
     if (!job) throw new Error("Belum ada video dengan public_video_url untuk demo TikTok.");
+    const caption = ensureCaptionSourceCredit(job.caption || "Clipper Emsa Pro TikTok video", {
+      sourceUrl: job.source_url,
+      sourceTitle: job.source_title,
+      maxLength: 2200
+    });
     const result = await publishToTikTok({
       videoUrl: job.public_video_url,
       videoPath: job.final_video_path || "",
-      caption: job.caption || "Clipper Emsa Pro TikTok video"
+      caption
     });
     await patchItem("jobs", job.job_id, {
       tiktok_status: result?.publishId ? "submitted" : "failed",
@@ -564,6 +571,7 @@ app.post("/api/run", async (req, res) => {
     return;
   }
 
+  reloadConfigFromEnv();
   const body = req.body || {};
   activeRun = {
     id: makeId("run"),

@@ -9,8 +9,8 @@ $config = [
   'scope' => getenv('YOUTUBE_AUTH_SCOPE') ?: 'https://www.googleapis.com/auth/youtube.upload',
   'app_name' => 'Clipper Emsa Pro',
   'homepage' => 'https://clipper.emsa.pro',
-  'privacy_url' => 'https://clipper.emsa.pro/privacy.html',
-  'terms_url' => 'https://clipper.emsa.pro/terms.html',
+  'privacy_url' => 'https://clipper.emsa.pro/privacy-policy',
+  'terms_url' => 'https://clipper.emsa.pro/terms-of-service',
 ];
 
 foreach ([
@@ -481,9 +481,10 @@ try {
         <span>Clipper Emsa Pro</span>
       </a>
       <nav class="nav" aria-label="Site navigation">
-        <a href="/privacy.html">Privacy Policy</a>
-        <a href="/terms.html">Terms</a>
-        <a href="/youtube-oauth-demo.html">OAuth Demo Guide</a>
+        <a href="/privacy-policy">Privacy Policy</a>
+        <a href="/terms-of-service">Terms</a>
+        <a href="/oauth-testing-instructions">Testing Instructions</a>
+        <a href="/oauth-scopes-justification">Scopes</a>
       </nav>
     </header>
 
@@ -497,7 +498,7 @@ try {
             <?php if ($authUrl): ?>
               <a class="btn primary" href="<?= e($authUrl) ?>">Connect / Reconnect YouTube</a>
             <?php endif; ?>
-            <a class="btn" href="/youtube-oauth-demo.html">Open Demo Guide</a>
+            <a class="btn" href="/oauth-testing-instructions">Open Testing Instructions</a>
           </div>
         </div>
 
