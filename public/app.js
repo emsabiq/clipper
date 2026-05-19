@@ -147,7 +147,8 @@ function buildStats(state) {
   const jobs = state.jobs || [];
   const history = state.history || [];
   const today = todayIsoDate();
-  const dailyLimit = Number(cfg.autoDiscoverDailyQueueLimit || cfg.maxScheduledPostsPerDay || 15) || 15;
+  const youtubeDailyLimit = Number(cfg.youtubeDailyUploadLimit || 6) || 6;
+  const dailyLimit = Number(cfg.autoDiscoverDailyQueueLimit || cfg.maxScheduledPostsPerDay || youtubeDailyLimit || 15) || 15;
   const activeVideos = videos.filter((video) => video.status !== "expired");
   const activeQueue = activeVideos.filter((video) => (video.status || "queued") === "queued").length;
   const staleQueue = activeVideos.filter(isStaleAutoQueue).length;
@@ -157,6 +158,7 @@ function buildStats(state) {
   const warningJobs = jobs.filter((job) => job.publish_status === "published_with_warnings").length;
   const readyJobs = jobs.filter((job) => ["ready_to_publish", "queued"].includes(job.status) || ["ready_to_publish", "queued"].includes(job.publish_status)).length;
   const todayPublished = publishedCountForDate(today, history, jobs);
+  const youtubeToday = youtubePublishedCountForDate(today, history, jobs);
   const series = lastDays(7).map((date) => ({
     date,
     published: publishedCountForDate(date, history, jobs),
@@ -173,6 +175,7 @@ function buildStats(state) {
     cfg,
     today,
     dailyLimit,
+    youtubeDailyLimit,
     videos,
     activeVideos,
     activeQueue,
@@ -185,12 +188,14 @@ function buildStats(state) {
     warningJobs,
     readyJobs,
     todayPublished,
+    youtubeToday,
     series,
     total7,
     prev7,
     trendDelta,
     successRate,
-    queueLoadPct: Math.min(100, Math.round((activeQueue / Math.max(1, dailyLimit)) * 100))
+    queueLoadPct: Math.min(100, Math.round((activeQueue / Math.max(1, dailyLimit)) * 100)),
+    youtubeLoadPct: Math.min(100, Math.round((youtubeToday / Math.max(1, youtubeDailyLimit)) * 100))
   };
 }
 
@@ -209,11 +214,13 @@ function renderConfigLine(cfg) {
 
 function renderMetrics(stats) {
   const loadTone = stats.activeQueue > stats.dailyLimit ? "warn" : "info";
+  const youtubeTone = stats.youtubeToday >= stats.youtubeDailyLimit ? "warn" : "ok";
   const staleTone = stats.staleQueue ? "bad" : "ok";
   const trend = stats.trendDelta > 0 ? `+${stats.trendDelta} vs prev` : `${stats.trendDelta} vs prev`;
   els.metrics.innerHTML = [
+    metricCard("YouTube hari ini", `${stats.youtubeToday}/${stats.youtubeDailyLimit}`, youtubeTone, `${stats.youtubeLoadPct}% limit`),
     metricCard("Queue aktif", stats.activeQueue, loadTone, `${stats.queueLoadPct}% dari slot`),
-    metricCard("Publish hari ini", stats.todayPublished, "ok", `target ${stats.dailyLimit}/hari`),
+    metricCard("Publish total", stats.todayPublished, "ok", "semua platform"),
     metricCard("Trend 7D", stats.total7, "info", trend),
     metricCard("Success rate", `${stats.successRate}%`, stats.successRate >= 80 ? "ok" : "warn", `${stats.failedJobs} failed`),
     metricCard("Queue lama", stats.staleQueue, staleTone, `${stats.expiredQueue} expired`)
@@ -238,7 +245,7 @@ function renderRun(state, stats) {
     els.runBadge.textContent = "Idle";
     els.runBadge.className = "runBadge idle";
     els.workflowTitle.textContent = "Menunggu proses";
-    els.workflowMeta.textContent = `Queue aktif ${stats.activeQueue}, publish hari ini ${stats.todayPublished}`;
+    els.workflowMeta.textContent = `Queue aktif ${stats.activeQueue}, YouTube ${stats.youtubeToday}/${stats.youtubeDailyLimit} hari ini`;
     els.runStatus.textContent = "Idle";
     els.runDetail.textContent = "Siap menerima link YouTube atau menjalankan queue.";
     els.runProgressLabel.textContent = "0%";
@@ -341,7 +348,13 @@ function platformStep(label, status, hasResult, storageDone, failed) {
 
 function renderInsights(stats) {
   const queueTone = stats.activeQueue > stats.dailyLimit ? "warn" : "ok";
+  const youtubeTone = stats.youtubeToday >= stats.youtubeDailyLimit ? "warn" : "ok";
   const items = [
+    {
+      tone: youtubeTone,
+      title: stats.youtubeToday >= stats.youtubeDailyLimit ? "Limit YouTube tercapai" : "YouTube masih aman",
+      body: `${stats.youtubeToday}/${stats.youtubeDailyLimit} upload YouTube hari ini.`
+    },
     {
       tone: queueTone,
       title: stats.activeQueue > stats.dailyLimit ? "Backlog di atas slot" : "Queue sesuai slot",
@@ -444,6 +457,7 @@ function renderPlatforms(cfg, stats) {
     platformItem("Threads", cfg.threadsEnabled, stats, "threads"),
     ["Storage", Boolean(cfg.uploadDriver), (cfg.uploadDriver || "local").toUpperCase()],
     ["Publish", cfg.autoPublish && !cfg.dryRun, cfg.dryRun ? "dry-run" : cfg.autoPublish ? "auto" : "manual"],
+    ["YT cap", stats.youtubeToday < stats.youtubeDailyLimit, `${stats.youtubeToday}/${stats.youtubeDailyLimit}`],
     ["Queue cap", stats.activeQueue <= stats.dailyLimit, `${stats.dailyLimit}/day`]
   ];
   els.platformGrid.innerHTML = items.map(([label, ok, value]) => `
@@ -924,6 +938,21 @@ function publishedCountForDate(date, history, jobs) {
   const fromHistory = history.filter((entry) => entry.status === "published" && entryDate(entry) === date).length;
   if (fromHistory) return fromHistory;
   return jobs.filter((job) => isPublishedJob(job) && dateKey(job.published_at || job.updated_at || job.created_at) === date).length;
+}
+
+function youtubePublishedCountForDate(date, history, jobs) {
+  const fromHistory = new Set(
+    history
+      .filter((entry) => entry.status === "published" && entryDate(entry) === date)
+      .filter((entry) => entry.youtube_url || entry.youtube_video_id)
+      .map((entry) => entry.youtube_url || entry.youtube_video_id)
+  );
+  if (fromHistory.size) return fromHistory.size;
+  return new Set(
+    jobs
+      .filter((job) => job.youtube_url && dateKey(job.youtube_published_at || job.published_at || job.updated_at || job.created_at) === date)
+      .map((job) => job.youtube_url)
+  ).size;
 }
 
 function failedCountForDate(date, jobs) {

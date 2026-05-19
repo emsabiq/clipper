@@ -144,6 +144,7 @@ function buildConfig() {
     youtube: {
       enabled: boolEnv("YOUTUBE_UPLOAD_ENABLED", false),
       customThumbnailEnabled: boolEnv("YOUTUBE_CUSTOM_THUMBNAIL_ENABLED", false),
+      dailyUploadLimit: Math.max(0, Math.floor(numberEnv("YOUTUBE_DAILY_UPLOAD_LIMIT", 6))),
       clientId: cleanText(process.env.YOUTUBE_CLIENT_ID),
       clientSecret: process.env.YOUTUBE_CLIENT_SECRET || "",
       refreshToken: process.env.YOUTUBE_REFRESH_TOKEN || "",

@@ -3,7 +3,7 @@ import path from "node:path";
 import { config, canPublish, shouldUploadToRemote } from "./config.js";
 import { ensureProjectDirs, patchItem, saveGeneratedJson } from "./storage.js";
 import { appendLog } from "./logger.js";
-import { appendHistory, publishedCountToday } from "./history.js";
+import { appendHistory, publishedCountToday, youtubePublishedCountToday } from "./history.js";
 import { addVideo, createJobRecord, selectNextVideo, updateVideoStatus } from "./selector.js";
 import { runClipper } from "./clipper-runner.js";
 import { generateCaption, generateFrameQuoteText, generateThumbnailText } from "./caption.js";
@@ -58,19 +58,29 @@ export async function runWorkflow(options = {}) {
 
   let scheduledDailyLimit = 0;
   let scheduledPostedToday = 0;
+  let scheduledDailyLimitScope = "";
 
   if (options.scheduled && options.publish) {
-    scheduledDailyLimit = Math.max(0, Number(process.env.MAX_SCHEDULED_POSTS_PER_DAY) || 0);
-    scheduledPostedToday = scheduledDailyLimit > 0 ? await publishedCountToday() : 0;
+    const maxScheduledLimit = Math.max(0, Number(process.env.MAX_SCHEDULED_POSTS_PER_DAY) || 0);
+    const youtubeLimit = config.youtube.enabled ? youtubeDailyUploadLimit() : 0;
+    scheduledDailyLimit = maxScheduledLimit > 0 ? maxScheduledLimit : youtubeLimit;
+    scheduledDailyLimitScope = maxScheduledLimit > 0 ? "scheduled" : scheduledDailyLimit > 0 ? "youtube" : "";
+    scheduledPostedToday = scheduledDailyLimit > 0
+      ? scheduledDailyLimitScope === "youtube"
+        ? await youtubePublishedCountToday()
+        : await publishedCountToday()
+      : 0;
     if (scheduledDailyLimit > 0 && scheduledPostedToday >= scheduledDailyLimit) {
       await appendLog("scheduled_skip", {
-        reason: "daily_limit_reached",
+        reason: scheduledDailyLimitScope === "youtube" ? "youtube_daily_limit_reached" : "daily_limit_reached",
+        limit_scope: scheduledDailyLimitScope,
         posted_today: scheduledPostedToday,
         daily_limit: scheduledDailyLimit
       });
       return {
         status: "scheduled_skip",
-        reason: "daily_limit_reached",
+        reason: scheduledDailyLimitScope === "youtube" ? "youtube_daily_limit_reached" : "daily_limit_reached",
+        limit_scope: scheduledDailyLimitScope,
         posted_today: scheduledPostedToday,
         daily_limit: scheduledDailyLimit
       };
@@ -596,14 +606,15 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
     });
     const primaryPublished = platformResults.hasAnySuccess;
     const youtubeQuotaExceeded = Boolean(platformResults.quotaExceeded?.youtube);
-    const deferredByQuota = youtubeQuotaExceeded && !primaryPublished;
+    const youtubeDailyLimitReached = Boolean(platformResults.dailyLimitReached?.youtube);
+    const deferredByYoutube = (youtubeQuotaExceeded || youtubeDailyLimitReached) && !primaryPublished;
     const publishStatus = primaryPublished
       ? platformResults.hasErrors ? "published_with_warnings" : "published"
-      : deferredByQuota ? "queued" : "publish_failed";
+      : deferredByYoutube ? "queued" : "publish_failed";
     const now = new Date().toISOString();
 
     await updateJob(job.job_id, {
-      status: primaryPublished ? "published" : deferredByQuota ? "queued" : "ready_to_publish",
+      status: primaryPublished ? "published" : deferredByYoutube ? "queued" : "ready_to_publish",
       publish_status: publishStatus,
       instagram_status: platformPublishStatus(platformResults, "instagram", config.instagram.enabled),
       instagram_media_id: platformResults.instagram?.mediaId || "",
@@ -723,6 +734,7 @@ function finalStatusFromClipResults(clipResults, publishEnabled) {
   const publishedClips = clipResults.filter((item) => item.primaryPublished).length;
   const hasPlatformErrors = clipResults.some((item) => item.platformResults?.hasErrors);
   const hasYoutubeQuotaExceeded = clipResults.some((item) => item.platformResults?.quotaExceeded?.youtube);
+  const hasYoutubeDailyLimitReached = clipResults.some((item) => item.platformResults?.dailyLimitReached?.youtube);
   const total = clipResults.length;
 
   if (!publishEnabled) {
@@ -764,16 +776,18 @@ function finalStatusFromClipResults(clipResults, publishEnabled) {
     };
   }
 
-  if (hasYoutubeQuotaExceeded) {
+  if (hasYoutubeQuotaExceeded || hasYoutubeDailyLimitReached) {
     return {
       status: "queued",
       publishStatus: "queued",
       videoStatus: "queued",
-      event: "youtube_quota_deferred",
+      event: hasYoutubeDailyLimitReached ? "youtube_daily_limit_deferred" : "youtube_quota_deferred",
       successfulClips,
       failedClips,
       publishedClips,
-      errorMessage: "Quota YouTube habis; video dikembalikan ke queue untuk jadwal berikutnya."
+      errorMessage: hasYoutubeDailyLimitReached
+        ? "Batas upload YouTube harian tercapai; video dikembalikan ke queue untuk jadwal berikutnya."
+        : "Quota YouTube habis; video dikembalikan ke queue untuk jadwal berikutnya."
     };
   }
 
@@ -805,6 +819,7 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
     threads: null,
     errors: {},
     quotaExceeded: {},
+    dailyLimitReached: {},
     hasAnySuccess: false,
     hasErrors: false
   };
@@ -826,22 +841,40 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
       });
       console.warn(`YouTube upload dilewati sampai reset quota: ${cooldown.until}`);
     } else {
-      platformResults.youtube = await publishPlatform("youtube", platformResults, job.job_id, async () => {
-        await updateJob(job.job_id, { youtube_status: "processing", youtube_error: "" });
-        const youtubeMetadata = buildYoutubeMetadata({ job, output, caption: socialCaption });
-        return publishToYoutube({
-          videoPath: output.finalAbsPath,
-          thumbnailPath: thumbnail?.path || "",
-          ...youtubeMetadata
+      const dailyLimit = youtubeDailyUploadLimit();
+      const postedToday = dailyLimit > 0 ? await youtubePublishedCountToday() : 0;
+      if (dailyLimit > 0 && postedToday >= dailyLimit) {
+        platformResults.hasErrors = true;
+        platformResults.dailyLimitReached.youtube = true;
+        platformResults.errors.youtube = `Batas upload YouTube harian tercapai (${postedToday}/${dailyLimit}).`;
+        await updateJob(job.job_id, {
+          youtube_status: "daily_limit_reached",
+          youtube_error: platformResults.errors.youtube
         });
-      });
-      if (platformResults.quotaExceeded.youtube) {
-        const quotaState = await markYoutubeQuotaExceeded("upload", platformResults.errors.youtube);
-        if (quotaState.until) {
-          console.warn(`YouTube quota cooldown disimpan sampai ${quotaState.until}.`);
+        await appendLog("youtube_daily_limit_skip", {
+          job_id: job.job_id,
+          posted_today: postedToday,
+          daily_limit: dailyLimit
+        });
+        console.warn(`YouTube upload dilewati: batas harian ${postedToday}/${dailyLimit}.`);
+      } else {
+        platformResults.youtube = await publishPlatform("youtube", platformResults, job.job_id, async () => {
+          await updateJob(job.job_id, { youtube_status: "processing", youtube_error: "" });
+          const youtubeMetadata = buildYoutubeMetadata({ job, output, caption: socialCaption });
+          return publishToYoutube({
+            videoPath: output.finalAbsPath,
+            thumbnailPath: thumbnail?.path || "",
+            ...youtubeMetadata
+          });
+        });
+        if (platformResults.quotaExceeded.youtube) {
+          const quotaState = await markYoutubeQuotaExceeded("upload", platformResults.errors.youtube);
+          if (quotaState.until) {
+            console.warn(`YouTube quota cooldown disimpan sampai ${quotaState.until}.`);
+          }
+        } else if (platformResults.youtube) {
+          await clearYoutubeQuotaExceeded("upload");
         }
-      } else if (platformResults.youtube) {
-        await clearYoutubeQuotaExceeded("upload");
       }
     }
 
@@ -914,6 +947,7 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
 function platformPublishStatus(platformResults, name, enabled, successStatus = "published") {
   if (platformResults?.[name]) return successStatus;
   if (!enabled) return "disabled";
+  if (name === "youtube" && platformResults?.dailyLimitReached?.youtube) return "daily_limit_reached";
   if (name === "youtube" && platformResults?.quotaExceeded?.youtube) return "quota_exceeded";
   if (platformResults?.errors?.[name]) return "failed";
   return "skipped";
@@ -977,6 +1011,12 @@ function buildMetadata({ job, video, theme, prompt, output, clipperResult, capti
     clipperJobId: clipperResult.jobId,
     createdAt: new Date().toISOString()
   };
+}
+
+function youtubeDailyUploadLimit() {
+  const value = Number(process.env.YOUTUBE_DAILY_UPLOAD_LIMIT);
+  if (!Number.isFinite(value)) return config.youtube.dailyUploadLimit || 6;
+  return Math.max(0, Math.floor(value));
 }
 
 async function appendHistoryEntry({ job, video, caption, output, upload, platformResults = {}, status, clipIndex = 1, clipTotal = 1 }) {

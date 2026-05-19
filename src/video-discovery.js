@@ -999,6 +999,8 @@ async function selectDiscoveredCandidates(rawCandidates, options, addCount, mode
 function fallbackPasses(baseQueries, baseOptions) {
   const fallbackQueries = nonPoliticalList([...baseQueries, ...FALLBACK_QUERIES]);
   const useDailyApi = boolEnv("AUTO_DISCOVER_USE_API", false);
+  const dailySearchOnly = boolEnv("AUTO_DISCOVER_DAILY_SEARCH_ONLY", true);
+  const useBroadApi = useDailyApi && !dailySearchOnly;
   const dailyApiMaxResults = numberEnv("AUTO_DISCOVER_DAILY_SEARCH_RESULTS", 7, 1, 50);
   const trendingMaxResults = numberEnv("AUTO_DISCOVER_TRENDING_MAX_RESULTS", 25, 1, 50);
   const fallbackMaxResults = numberEnv("AUTO_DISCOVER_FALLBACK_MAX_RESULTS", 12, baseOptions.maxResults, 50);
@@ -1010,7 +1012,7 @@ function fallbackPasses(baseQueries, baseOptions) {
     {
       mode: "fresh_channels",
       channelOnly: true,
-      useApi: true,
+      useApi: useBroadApi,
       queries: [],
       options: {
         ...baseOptions,
@@ -1020,7 +1022,7 @@ function fallbackPasses(baseQueries, baseOptions) {
         minViewsPerHour: 0
       }
     },
-    ...(useDailyApi && trendingEnabled ? [{
+    ...(useBroadApi && trendingEnabled ? [{
       mode: "today_trending",
       trending: true,
       useApi: true,

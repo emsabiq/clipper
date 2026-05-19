@@ -164,6 +164,7 @@ export function configSummary() {
     instagramEnabled: boolEnv("INSTAGRAM_UPLOAD_ENABLED", true),
     facebookEnabled: boolEnv("FACEBOOK_UPLOAD_ENABLED", true),
     youtubeEnabled: boolEnv("YOUTUBE_UPLOAD_ENABLED", true),
+    youtubeDailyUploadLimit: Number(process.env.YOUTUBE_DAILY_UPLOAD_LIMIT || 6),
     tiktokPaused: boolEnv("TIKTOK_UPLOAD_PAUSED", false),
     tiktokEnabled: !boolEnv("TIKTOK_UPLOAD_PAUSED", false) && boolEnv("TIKTOK_UPLOAD_ENABLED", false),
     tiktokPublishMode: clean(process.env.TIKTOK_PUBLISH_MODE || "direct"),

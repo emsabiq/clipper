@@ -196,8 +196,8 @@ Aturan cron harian:
 
 ```txt
 Workflow scheduled berjalan 15 kali per hari.
-MAX_SCHEDULED_POSTS_PER_DAY default `0`, jadi scheduled run tidak memakai limit harian.
-Jika ingin membatasi posting, isi MAX_SCHEDULED_POSTS_PER_DAY lebih dari `0`.
+YouTube dibatasi oleh `YOUTUBE_DAILY_UPLOAD_LIMIT` default `6` video per hari.
+Jika `MAX_SCHEDULED_POSTS_PER_DAY` diisi lebih dari `0`, nilai itu menjadi limit umum scheduled run.
 ```
 
 ---
@@ -731,7 +731,8 @@ THREADS_UPLOAD_ENABLED=false
 THREADS_CONTAINER_POLL_SECONDS=6
 THREADS_CONTAINER_MAX_ATTEMPTS=90
 MAX_SCHEDULED_POSTS_PER_DAY=0
-AUTO_DISCOVER_DAILY_QUEUE_LIMIT=0
+YOUTUBE_DAILY_UPLOAD_LIMIT=6
+AUTO_DISCOVER_DAILY_QUEUE_LIMIT=6
 AUTO_DISCOVER_EXPIRE_OLD_QUEUE=true
 AUTO_DISCOVER_QUEUE_TTL_DAYS=1
 ```
@@ -830,7 +831,8 @@ THUMBNAIL_PILL_TEXT=Podcast | Highlight | Viral
 THUMBNAIL_INTRO_ENABLED=true
 THUMBNAIL_INTRO_SECONDS=0.9
 MAX_SCHEDULED_POSTS_PER_DAY=0
-AUTO_DISCOVER_DAILY_QUEUE_LIMIT=0
+YOUTUBE_DAILY_UPLOAD_LIMIT=6
+AUTO_DISCOVER_DAILY_QUEUE_LIMIT=6
 AUTO_DISCOVER_EXPIRE_OLD_QUEUE=true
 AUTO_DISCOVER_QUEUE_TTL_DAYS=1
 
@@ -977,9 +979,13 @@ Durasi frame pembuka thumbnail. Default: `0.9`.
 
 Upload custom thumbnail ke YouTube. Default: `false`, karena thumbnail sudah dimasukkan sebagai frame awal video agar publish lebih cepat dan tidak kena limit thumbnail.
 
+#### `YOUTUBE_DAILY_UPLOAD_LIMIT`
+
+Batas upload YouTube per hari. Default produksi: `6`. Jika batas tercapai, upload YouTube dilewati dan item dijaga untuk jadwal berikutnya tanpa memanggil YouTube upload API.
+
 #### `MAX_SCHEDULED_POSTS_PER_DAY`
 
-Batas publish dari run terjadwal GitHub Actions per hari. Default: `0`, artinya tidak ada limit harian. Jika diisi lebih dari `0` dan batas tercapai, workflow scheduled berikutnya akan skip.
+Batas publish umum dari run terjadwal GitHub Actions per hari. Default `0`; saat `0`, guard khusus YouTube tetap memakai `YOUTUBE_DAILY_UPLOAD_LIMIT` (`6`). Jika diisi lebih dari `0`, nilai ini menjadi limit umum scheduled run.
 
 #### `AUTO_DISCOVER_DAILY_QUEUE_LIMIT`
 
