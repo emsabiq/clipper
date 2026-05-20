@@ -28,6 +28,7 @@ let pollTimer = null;
 let lastRunStatus = "idle";
 let cachedVideos = [];
 let cachedJobs = [];
+let ttsAudioUrl = "";
 let videoLimit = ROW_LIMIT_DEFAULT;
 let jobLimit = ROW_LIMIT_DEFAULT;
 let effectDefaults = {
@@ -78,6 +79,11 @@ const els = {
   platformGrid: document.querySelector("#platformGrid"),
   platformCaption: document.querySelector("#platformCaption"),
   youtubeReconnectBtn: document.querySelector("#youtubeReconnectBtn"),
+  ttsBadge: document.querySelector("#ttsBadge"),
+  ttsText: document.querySelector("#ttsText"),
+  ttsTestBtn: document.querySelector("#ttsTestBtn"),
+  ttsAudio: document.querySelector("#ttsAudio"),
+  ttsStatus: document.querySelector("#ttsStatus"),
   runForm: document.querySelector("#runForm"),
   videoForm: document.querySelector("#videoForm"),
   consoleOutput: document.querySelector("#consoleOutput"),
@@ -134,6 +140,7 @@ async function refresh() {
   renderInsights(stats);
   renderCharts(stats);
   renderPlatforms(state.config || {}, stats);
+  renderTtsConfig(state.config || {});
   renderConsole(state.activeRun);
   renderVideos(state.videos || []);
   renderJobs(state.jobs || []);
@@ -317,6 +324,9 @@ function buildPipelineSteps(state) {
   const clipperDone = job.clipper_status === "done" || Boolean(job.final_video_path);
   const captionDone = job.caption_status === "done" || Boolean(job.caption);
   const thumbnailDone = job.thumbnail_status === "done" || Boolean(job.thumbnail_path);
+  const thumbnailDetail = job.thumbnail_intro?.ttsApplied
+    ? `TTS ${Number(job.thumbnail_intro.durationSeconds || 0).toFixed(1)}s`
+    : job.thumbnail_status || "Thumbnail";
   const storageDone = Boolean(job.public_video_url);
   const published = isPublishedJob(job);
 
@@ -325,7 +335,7 @@ function buildPipelineSteps(state) {
     { label: "Clipper", state: stepState(failed && !clipperDone, isActive(job, ["clipper_processing"]), clipperDone), detail: job.clipper_status || "Render" },
     { label: "Branding", state: stepState(false, clipperDone && !job.video_effects && !failed, Boolean(job.video_effects)), detail: job.video_effects ? "FX applied" : "Frame/filter" },
     { label: "Caption", state: stepState(failed && clipperDone && !captionDone, clipperDone && !captionDone && !failed, captionDone), detail: job.caption_status || "Caption" },
-    { label: "Thumbnail", state: stepState(failed && captionDone && !thumbnailDone, captionDone && !thumbnailDone && !failed, thumbnailDone), detail: job.thumbnail_status || "Thumbnail" },
+    { label: "Thumbnail", state: stepState(failed && captionDone && !thumbnailDone, captionDone && !thumbnailDone && !failed, thumbnailDone), detail: thumbnailDetail },
     { label: "Storage", state: stepState(failed && thumbnailDone && !storageDone, thumbnailDone && !storageDone && !failed, storageDone), detail: storageDone ? "Public URL" : "Upload" },
     platformStep("Instagram", job.instagram_status, Boolean(job.instagram_media_id), storageDone, failed),
     platformStep("Facebook", job.facebook_status, Boolean(job.facebook_video_id || job.facebook_post_id), storageDone, failed),
@@ -485,6 +495,14 @@ function platformItem(label, envEnabled, stats, key, forcedValue = "", enabledVa
     return [label, true, envEnabled ? activity.value : "via Action"];
   }
   return [label, envEnabled, envEnabled ? enabledValue : "off"];
+}
+
+function renderTtsConfig(cfg) {
+  if (!els.ttsBadge) return;
+  const enabled = cfg.thumbnailTtsEnabled !== false;
+  const speed = cfg.thumbnailTtsSpeed || "1.18";
+  els.ttsBadge.textContent = enabled ? `${cfg.thumbnailTtsModel || "Deepgram"} @${speed}x` : "Off";
+  els.ttsBadge.classList.toggle("warn", !enabled);
 }
 
 function platformActivity(jobs = [], key) {
@@ -777,6 +795,30 @@ els.youtubeReconnectBtn?.addEventListener("click", async () => {
   }
 });
 
+els.ttsTestBtn?.addEventListener("click", async () => {
+  const text = els.ttsText?.value.trim() || "Bagian ini bikin semua orang ikut mikir";
+  els.ttsTestBtn.disabled = true;
+  els.ttsStatus.textContent = "Membuat audio Deepgram...";
+  try {
+    const result = await api("/api/tts-preview", {
+      method: "POST",
+      body: JSON.stringify({ text })
+    });
+    const bytes = base64ToBytes(result.audioBase64 || "");
+    const blob = new Blob([bytes], { type: result.mimeType || "audio/mpeg" });
+    if (ttsAudioUrl) URL.revokeObjectURL(ttsAudioUrl);
+    ttsAudioUrl = URL.createObjectURL(blob);
+    els.ttsAudio.src = ttsAudioUrl;
+    els.ttsAudio.hidden = false;
+    els.ttsStatus.textContent = `${result.model || "Deepgram"} / ${result.speed || "1.18"}x / ${result.charCount || text.length} karakter`;
+    await els.ttsAudio.play().catch(() => {});
+  } catch (error) {
+    handleApiError(error, els.ttsStatus);
+  } finally {
+    els.ttsTestBtn.disabled = false;
+  }
+});
+
 els.videoForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   setSubmittersDisabled(true);
@@ -1057,4 +1099,13 @@ function escapeHtml(value) {
 
 function escapeAttr(value) {
   return escapeHtml(value).replace(/`/g, "&#96;");
+}
+
+function base64ToBytes(value) {
+  const raw = window.atob(String(value || ""));
+  const bytes = new Uint8Array(raw.length);
+  for (let index = 0; index < raw.length; index += 1) {
+    bytes[index] = raw.charCodeAt(index);
+  }
+  return bytes;
 }

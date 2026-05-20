@@ -19,6 +19,7 @@ import {
   requestOrigin,
   verifyYoutubeOAuthState
 } from "./youtube-oauth.js";
+import { buildThumbnailSpeechText, deepgramTtsConfig, synthesizeDeepgramSpeech } from "./deepgram-tts.js";
 
 await ensureProjectDirs();
 await downloadStateFromRemote().catch(() => {});
@@ -55,6 +56,8 @@ const sensitiveEnvKeys = new Set([
   "OPENAI_API_KEY",
   "DEEPGRAM_API_KEY",
   "DEEPGRAM_API_KEYS",
+  "DEEPGRAM_TTS_API_KEY",
+  "DEEPGRAM_TTS_API_KEYS",
   "YTDLP_COOKIES_TXT"
 ]);
 
@@ -220,7 +223,13 @@ const envGroups = [
       field("TRANSCRIBE_PROVIDER", "Transcript provider"),
       field("DEEPGRAM_API_KEYS", "Deepgram keys", true),
       field("DEEPGRAM_MODEL", "Deepgram model"),
-      field("DEEPGRAM_TIMEOUT_SECONDS", "Deepgram timeout")
+      field("DEEPGRAM_TIMEOUT_SECONDS", "Deepgram timeout"),
+      field("THUMBNAIL_TTS_ENABLED", "Thumbnail TTS"),
+      field("DEEPGRAM_TTS_API_KEYS", "Deepgram TTS keys", true),
+      field("DEEPGRAM_TTS_MODEL", "Deepgram TTS model"),
+      field("DEEPGRAM_TTS_SPEED", "Deepgram TTS speed"),
+      field("THUMBNAIL_TTS_PAD_SECONDS", "Thumbnail TTS pad"),
+      field("THUMBNAIL_TTS_MAX_SECONDS", "Thumbnail TTS max")
     ]
   },
   {
@@ -315,6 +324,9 @@ app.get("/api/state", async (_req, res) => {
       backgroundMusicFile: process.env.BACKGROUND_MUSIC_FILE || "",
       backgroundMusicMapFile: process.env.BACKGROUND_MUSIC_MAP_FILE || "assets/music/music-map.json",
       backgroundMusicVolume: process.env.BACKGROUND_MUSIC_VOLUME || "0.05",
+      thumbnailTtsEnabled: deepgramTtsConfig().enabled,
+      thumbnailTtsModel: deepgramTtsConfig().model,
+      thumbnailTtsSpeed: deepgramTtsConfig().speed,
       aiProvider: config.ai.provider,
       subtitleFont: process.env.SUBTITLE_FONT_FAMILY || "Segoe UI Semibold",
       subtitleMarginV: process.env.SUBTITLE_MARGIN_V || "550",
@@ -357,6 +369,24 @@ app.post("/api/preflight", async (_req, res) => {
     res.json(report);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/tts-preview", async (req, res) => {
+  try {
+    const text = buildThumbnailSpeechText(String(req.body?.text || ""));
+    const speech = await synthesizeDeepgramSpeech({ text, tag: "dashboard-preview" });
+    res.json({
+      ok: true,
+      text,
+      mimeType: speech.mimeType,
+      model: speech.model,
+      speed: speech.speed,
+      charCount: speech.charCount,
+      audioBase64: speech.buffer.toString("base64")
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
 });
 

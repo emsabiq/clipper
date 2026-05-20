@@ -304,6 +304,14 @@ jobs:
       THUMBNAIL_PILL_TEXT: ${{ secrets.THUMBNAIL_PILL_TEXT || 'Podcast | Highlight | Viral' }}
       THUMBNAIL_INTRO_ENABLED: ${{ secrets.THUMBNAIL_INTRO_ENABLED || 'true' }}
       THUMBNAIL_INTRO_SECONDS: ${{ secrets.THUMBNAIL_INTRO_SECONDS || '0.9' }}
+      THUMBNAIL_TTS_ENABLED: ${{ secrets.THUMBNAIL_TTS_ENABLED || 'true' }}
+      THUMBNAIL_TTS_PAD_SECONDS: ${{ secrets.THUMBNAIL_TTS_PAD_SECONDS || '0.15' }}
+      THUMBNAIL_TTS_MAX_SECONDS: ${{ secrets.THUMBNAIL_TTS_MAX_SECONDS || '12' }}
+      THUMBNAIL_TTS_TEXT_PREFIX: ${{ secrets.THUMBNAIL_TTS_TEXT_PREFIX || '' }}
+      DEEPGRAM_TTS_API_KEYS: ${{ secrets.DEEPGRAM_TTS_API_KEYS || secrets.DEEPGRAM_API_KEYS }}
+      DEEPGRAM_TTS_MODEL: ${{ secrets.DEEPGRAM_TTS_MODEL || 'aura-2-thalia-en' }}
+      DEEPGRAM_TTS_SPEED: ${{ secrets.DEEPGRAM_TTS_SPEED || '1.18' }}
+      DEEPGRAM_TTS_TIMEOUT_SECONDS: ${{ secrets.DEEPGRAM_TTS_TIMEOUT_SECONDS || '45' }}
       SUBTITLE_FONT_FAMILY: ${{ github.event.inputs.subtitle_font || secrets.SUBTITLE_FONT_FAMILY || 'Selawik Semibold' }}
       SUBTITLE_FALLBACK_FONTS: ${{ secrets.SUBTITLE_FALLBACK_FONTS || 'Selawik Semibold,Selawik,DejaVu Sans' }}
       SUBTITLE_FONT_SIZE: ${{ github.event.inputs.subtitle_font_size || secrets.SUBTITLE_FONT_SIZE || '56' }}

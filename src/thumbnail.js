@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { config } from "./config.js";
+import { generateThumbnailSpeech } from "./deepgram-tts.js";
 
 const CANVAS_WIDTH = 1080;
 const CANVAS_HEIGHT = 1920;
@@ -24,6 +25,8 @@ const BORDER_OPACITY = clampOpacity(process.env.THUMBNAIL_BORDER_OPACITY, 0.85);
 const TEXT_OUTLINE_OPACITY = clampOpacity(process.env.THUMBNAIL_TEXT_OUTLINE_OPACITY, 0.85);
 const JPEG_Q = process.env.THUMBNAIL_JPEG_Q || "1";
 const INTRO_SECONDS = clampSeconds(process.env.THUMBNAIL_INTRO_SECONDS, 0.9);
+const TTS_PAD_SECONDS = clampDuration(process.env.THUMBNAIL_TTS_PAD_SECONDS, 0.15, 0, 2);
+const TTS_MAX_SECONDS = clampDuration(process.env.THUMBNAIL_TTS_MAX_SECONDS, 12, 1, 30);
 const rendererPath = path.join(config.srcDir, "branding-renderer.py");
 
 export async function generateThumbnail({ job, videoPath, text }) {
@@ -104,7 +107,7 @@ export async function generateThumbnail({ job, videoPath, text }) {
   return { path: outputPath, filename, text: displayText };
 }
 
-export async function prependThumbnailIntro({ job, videoPath, thumbnailPath }) {
+export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, text = "" }) {
   if (!boolValue(process.env.THUMBNAIL_INTRO_ENABLED, true)) return null;
   if (!videoPath || !thumbnailPath) return null;
   if (!await fileExists(videoPath) || !await fileExists(thumbnailPath)) return null;
@@ -112,20 +115,36 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath }) {
   await fs.mkdir(config.generatedVideoDir, { recursive: true });
   const introPath = path.join(config.generatedVideoDir, `${job.job_id}-thumb-intro.mp4`);
   const outputPath = path.join(config.generatedVideoDir, `${job.job_id}-with-thumb-intro.mp4`);
+
+  const speech = await generateThumbnailSpeech({ job, text }).catch((error) => {
+    console.warn(`Deepgram TTS thumbnail dilewati: ${error.message}`);
+    return null;
+  });
+  const speechDuration = speech?.path ? await probeDurationSeconds(speech.path) : null;
+  const introSeconds = speechDuration
+    ? clampDuration(speechDuration + TTS_PAD_SECONDS, INTRO_SECONDS, 0.3, TTS_MAX_SECONDS)
+    : INTRO_SECONDS;
+
   await Promise.all([
     fs.rm(introPath, { force: true }).catch(() => {}),
     fs.rm(outputPath, { force: true }).catch(() => {})
   ]);
 
+  const audioInputArgs = speech?.path
+    ? ["-i", speech.path]
+    : [
+      "-f", "lavfi",
+      "-t", String(introSeconds),
+      "-i", "anullsrc=channel_layout=stereo:sample_rate=48000"
+    ];
+
   await runFfmpeg([
     "-y",
     "-loop", "1",
     "-framerate", "30",
-    "-t", String(INTRO_SECONDS),
+    "-t", String(introSeconds),
     "-i", thumbnailPath,
-    "-f", "lavfi",
-    "-t", String(INTRO_SECONDS),
-    "-i", "anullsrc=channel_layout=stereo:sample_rate=48000",
+    ...audioInputArgs,
     "-vf", "setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,fps=30,format=yuv420p",
     "-af", "aresample=async=1:first_pts=0,asetpts=PTS-STARTPTS",
     "-r", "30",
@@ -136,7 +155,7 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath }) {
     "-ar", "48000",
     "-ac", "2",
     "-b:a", "128k",
-    "-shortest",
+    "-t", String(introSeconds),
     "-avoid_negative_ts", "make_zero",
     "-movflags", "+faststart",
     introPath
@@ -174,7 +193,12 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath }) {
   return {
     path: outputPath,
     introPath,
-    durationSeconds: INTRO_SECONDS
+    durationSeconds: introSeconds,
+    ttsApplied: Boolean(speech?.path),
+    ttsAudioPath: speech?.path || "",
+    ttsText: speech?.text || "",
+    ttsModel: speech?.model || "",
+    ttsSpeed: speech?.speed || ""
   };
 }
 
@@ -387,6 +411,12 @@ function clampSeconds(value, fallback) {
   const num = Number(value);
   if (!Number.isFinite(num)) return fallback;
   return Math.min(3, Math.max(0.3, num));
+}
+
+function clampDuration(value, fallback, min, max) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.min(max, Math.max(min, num));
 }
 
 function formatTimestamp(seconds) {

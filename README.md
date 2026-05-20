@@ -832,6 +832,11 @@ VIDEO_EFFECT_PRESET=veryfast
 THUMBNAIL_PILL_TEXT=Podcast | Highlight | Viral
 THUMBNAIL_INTRO_ENABLED=true
 THUMBNAIL_INTRO_SECONDS=0.9
+THUMBNAIL_TTS_ENABLED=true
+DEEPGRAM_TTS_MODEL=aura-2-thalia-en
+DEEPGRAM_TTS_SPEED=1.18
+THUMBNAIL_TTS_PAD_SECONDS=0.15
+THUMBNAIL_TTS_MAX_SECONDS=12
 MAX_SCHEDULED_POSTS_PER_DAY=0
 YOUTUBE_DAILY_UPLOAD_LIMIT=6
 AUTO_DISCOVER_CHANNEL_ONLY=true
@@ -978,7 +983,19 @@ Menambahkan thumbnail sebagai frame pembuka pendek di video final. Default: `tru
 
 #### `THUMBNAIL_INTRO_SECONDS`
 
-Durasi frame pembuka thumbnail. Default: `0.9`.
+Durasi frame pembuka thumbnail saat TTS tidak aktif atau gagal. Default: `0.9`.
+
+#### `THUMBNAIL_TTS_ENABLED`
+
+Membuat suara pembuka dari teks thumbnail memakai Deepgram TTS, lalu menahan thumbnail sampai audio selesai. Default: `true`.
+
+#### `DEEPGRAM_TTS_MODEL`
+
+Model suara Deepgram untuk pembuka thumbnail. Default: `aura-2-thalia-en` (suara wanita, cepat/enerjik). Jika Deepgram menambah model Bahasa Indonesia, isi secret ini dengan model `id` yang sesuai.
+
+#### `DEEPGRAM_TTS_SPEED`
+
+Kecepatan suara pembuka thumbnail. Default: `1.18`.
 
 #### `YOUTUBE_CUSTOM_THUMBNAIL_ENABLED`
 

@@ -507,7 +507,8 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
   const thumbnailIntro = await prependThumbnailIntro({
     job: storageJob,
     videoPath: output.finalAbsPath,
-    thumbnailPath: thumbnail.path
+    thumbnailPath: thumbnail.path,
+    text: thumbnail.text
   }).catch((error) => {
     console.warn(`Intro thumbnail dilewati: ${error.message}`);
     return null;
@@ -519,7 +520,12 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
       thumbnailIntro: {
         applied: true,
         durationSeconds: thumbnailIntro.durationSeconds,
-        introPath: thumbnailIntro.introPath
+        introPath: thumbnailIntro.introPath,
+        ttsApplied: thumbnailIntro.ttsApplied === true,
+        ttsAudioPath: thumbnailIntro.ttsAudioPath || "",
+        ttsText: thumbnailIntro.ttsText || "",
+        ttsModel: thumbnailIntro.ttsModel || "",
+        ttsSpeed: thumbnailIntro.ttsSpeed || ""
       }
     };
   }

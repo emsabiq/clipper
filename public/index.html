@@ -302,6 +302,25 @@
         </form>
       </section>
 
+      <section class="panel ttsPanel">
+        <div class="panelHead">
+          <div>
+            <p class="kicker">Deepgram</p>
+            <h2>Uji TTS Thumbnail</h2>
+          </div>
+          <span id="ttsBadge" class="badge">TTS</span>
+        </div>
+        <div class="ttsTester">
+          <label class="field wide">
+            <span>Judul thumbnail</span>
+            <input id="ttsText" maxlength="220" value="Bagian ini bikin semua orang ikut mikir">
+          </label>
+          <button id="ttsTestBtn" class="btn primary" type="button">Uji Suara</button>
+          <audio id="ttsAudio" controls hidden></audio>
+          <p id="ttsStatus" class="subtle">Siap diuji.</p>
+        </div>
+      </section>
+
       <section class="monitorGrid">
         <section class="panel consolePanel">
           <div class="panelHead">

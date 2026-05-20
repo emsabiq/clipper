@@ -199,7 +199,12 @@ function buildConfig() {
       apiKeys: deepgramApiKeys,
       model: cleanText(process.env.DEEPGRAM_MODEL || "nova-3"),
       language: cleanText(process.env.DEEPGRAM_LANGUAGE || process.env.VIDEO_LANGUAGE || "id"),
-      timeoutSeconds: numberEnv("DEEPGRAM_TIMEOUT_SECONDS", 900)
+      timeoutSeconds: numberEnv("DEEPGRAM_TIMEOUT_SECONDS", 900),
+      tts: {
+        enabled: boolEnv("THUMBNAIL_TTS_ENABLED", true),
+        model: cleanText(process.env.DEEPGRAM_TTS_MODEL || "aura-2-thalia-en"),
+        speed: numberEnv("DEEPGRAM_TTS_SPEED", 1.18)
+      }
     },
     ftp: {
       driver: uploadDriver,
