@@ -990,6 +990,7 @@ Durasi frame pembuka thumbnail saat TTS tidak aktif atau gagal. Default: `0.9`.
 #### `THUMBNAIL_TTS_ENABLED`
 
 Membuat suara pembuka dari teks thumbnail memakai Deepgram TTS, lalu menahan thumbnail sampai audio selesai. Default: `true`.
+Segmen pembuka hanya berisi thumbnail freeze + audio TTS; audio video utama dan backsound baru mulai setelah durasi TTS selesai.
 
 #### `DEEPGRAM_TTS_MODEL`
 

@@ -124,6 +124,7 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
   const introSeconds = speechDuration
     ? clampDuration(speechDuration + TTS_PAD_SECONDS, INTRO_SECONDS, 0.3, TTS_MAX_SECONDS)
     : INTRO_SECONDS;
+  const introSecondsArg = formatFfmpegSeconds(introSeconds);
 
   await Promise.all([
     fs.rm(introPath, { force: true }).catch(() => {}),
@@ -145,8 +146,10 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
     "-t", String(introSeconds),
     "-i", thumbnailPath,
     ...audioInputArgs,
+    "-map", "0:v:0",
+    "-map", "1:a:0",
     "-vf", "setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,fps=30,format=yuv420p",
-    "-af", "aresample=async=1:first_pts=0,asetpts=PTS-STARTPTS",
+    "-af", `aresample=async=1:first_pts=0,asetpts=PTS-STARTPTS,apad,atrim=duration=${introSecondsArg}`,
     "-r", "30",
     "-c:v", "libx264",
     "-preset", config.videoEffects.preset || "veryfast",
@@ -171,7 +174,7 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
     [
       "[0:v]setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,setsar=1,fps=30,format=yuv420p[v0]",
       "[1:v]setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,setsar=1,fps=30,format=yuv420p[v1]",
-      "[0:a]aresample=async=1:first_pts=0,asetpts=PTS-STARTPTS[a0]",
+      `[0:a]aresample=async=1:first_pts=0,asetpts=PTS-STARTPTS,apad,atrim=duration=${introSecondsArg}[a0]`,
       "[1:a]aresample=async=1:first_pts=0,asetpts=PTS-STARTPTS[a1]",
       "[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]"
     ].join(";"),
@@ -200,6 +203,12 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
     ttsModel: speech?.model || "",
     ttsSpeed: speech?.speed || ""
   };
+}
+
+function formatFfmpegSeconds(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return "0.3";
+  return number.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
 }
 
 function runRenderer(args) {

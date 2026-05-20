@@ -853,6 +853,11 @@ els.ttsTestBtn?.addEventListener("click", async () => {
   els.ttsTestBtn.disabled = true;
   els.ttsStatus.textContent = "Membuat audio Deepgram...";
   try {
+    pauseLatestPreviewVideo();
+    if (introPreviewAudio) {
+      introPreviewAudio.pause();
+      introPreviewAudio = null;
+    }
     const result = await api("/api/tts-preview", {
       method: "POST",
       body: JSON.stringify({ text })
@@ -907,15 +912,18 @@ async function playIntroVideoPreview(button) {
   const status = document.querySelector("#instagramDemoStatus");
   if (!frame || !video || !latestVideoJob) return;
 
+  const wasMuted = video.muted;
   button.disabled = true;
   if (status) status.textContent = "Membuat TTS intro...";
 
   try {
+    els.ttsAudio?.pause();
     if (introPreviewAudio) {
       introPreviewAudio.pause();
       introPreviewAudio = null;
     }
     video.pause();
+    video.muted = true;
     video.currentTime = 0;
 
     const title = latestVideoJob.thumbnail_text || latestVideoJob.source_title || "Bagian ini bikin penasaran";
@@ -945,9 +953,11 @@ async function playIntroVideoPreview(button) {
     overlay.hidden = true;
     frame.classList.remove("playingIntro");
     video.currentTime = 0;
+    video.muted = wasMuted;
     await video.play().catch(() => {});
     if (status) status.textContent = "Preview TTS+video selesai dibuat.";
   } catch (error) {
+    video.muted = wasMuted;
     frame.classList.remove("playingIntro");
     const overlay = frame.querySelector(".introPreviewOverlay");
     if (overlay) overlay.hidden = true;
@@ -955,6 +965,12 @@ async function playIntroVideoPreview(button) {
   } finally {
     button.disabled = false;
   }
+}
+
+function pauseLatestPreviewVideo() {
+  const video = els.latestVideoPreview?.querySelector("video");
+  if (!video) return;
+  video.pause();
 }
 
 function ensureIntroOverlay(frame, job, speechText) {
