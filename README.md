@@ -846,6 +846,11 @@ DEEPGRAM_TTS_PRONUNCIATION_ENABLED=true
 THUMBNAIL_TTS_VOLUME=1.45
 THUMBNAIL_TTS_PAD_SECONDS=0
 THUMBNAIL_TTS_MAX_SECONDS=12
+THUMBNAIL_TRANSITION_ENABLED=true
+THUMBNAIL_TRANSITION_ASSET=assets/branding/transisi-thumbnail-to-content.mp4
+THUMBNAIL_TRANSITION_KEY_COLOR=0x000000
+THUMBNAIL_TRANSITION_KEY_SIMILARITY=0.18
+THUMBNAIL_TRANSITION_KEY_BLEND=0.04
 MAX_SCHEDULED_POSTS_PER_DAY=0
 YOUTUBE_DAILY_UPLOAD_LIMIT=6
 AUTO_DISCOVER_CHANNEL_ONLY=false
@@ -1042,6 +1047,26 @@ Mengaktifkan pronunciation override IPA khusus jika `THUMBNAIL_TTS_PROVIDER=deep
 #### `THUMBNAIL_TTS_VOLUME`
 
 Gain audio TTS pembuka thumbnail sebelum video utama dimulai. Default: `1.45`.
+
+#### `THUMBNAIL_TRANSITION_ENABLED`
+
+Menambahkan overlay transisi setelah TTS thumbnail selesai dan tepat saat video utama mulai. Default: `true`.
+
+#### `THUMBNAIL_TRANSITION_ASSET`
+
+Path MP4 transisi yang dipakai setelah intro thumbnail. Default: `assets/branding/transisi-thumbnail-to-content.mp4`.
+
+#### `THUMBNAIL_TRANSITION_KEY_COLOR`
+
+Warna chroma key untuk membuat layer dasar transisi transparan. Default: `0x000000` untuk warna hitam.
+
+#### `THUMBNAIL_TRANSITION_KEY_SIMILARITY`
+
+Toleransi kemiripan chroma key. Default: `0.18`, cukup longgar untuk hitam hasil kompresi video.
+
+#### `THUMBNAIL_TRANSITION_KEY_BLEND`
+
+Feather/halusnya pinggir alpha dari chroma key. Default: `0.04`.
 
 #### `YOUTUBE_CUSTOM_THUMBNAIL_ENABLED`
 

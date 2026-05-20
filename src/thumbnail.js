@@ -27,6 +27,12 @@ const JPEG_Q = process.env.THUMBNAIL_JPEG_Q || "1";
 const INTRO_SECONDS = clampSeconds(process.env.THUMBNAIL_INTRO_SECONDS, 0.9);
 const TTS_PAD_SECONDS = clampDuration(process.env.THUMBNAIL_TTS_PAD_SECONDS, 0, 0, 2);
 const TTS_MAX_SECONDS = clampDuration(process.env.THUMBNAIL_TTS_MAX_SECONDS, 12, 1, 30);
+const DEFAULT_TRANSITION_ASSET = "assets/branding/transisi-thumbnail-to-content.mp4";
+const TRANSITION_ENABLED = boolValue(process.env.THUMBNAIL_TRANSITION_ENABLED, true);
+const TRANSITION_ASSET = process.env.THUMBNAIL_TRANSITION_ASSET || DEFAULT_TRANSITION_ASSET;
+const TRANSITION_KEY_COLOR = sanitizeColor(process.env.THUMBNAIL_TRANSITION_KEY_COLOR, "0x000000");
+const TRANSITION_KEY_SIMILARITY = clampNumber(process.env.THUMBNAIL_TRANSITION_KEY_SIMILARITY, 0.18, 0, 1);
+const TRANSITION_KEY_BLEND = clampNumber(process.env.THUMBNAIL_TRANSITION_KEY_BLEND, 0.04, 0, 1);
 const rendererPath = path.join(config.srcDir, "branding-renderer.py");
 
 export async function generateThumbnail({ job, videoPath, text }) {
@@ -126,6 +132,7 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
     : INTRO_SECONDS;
   const introSecondsArg = formatFfmpegSeconds(introSeconds);
   const introAudioFilter = buildIntroAudioFilter({ introSeconds: introSecondsArg, speech });
+  const transition = await resolveThumbnailTransition();
 
   await Promise.all([
     fs.rm(introPath, { force: true }).catch(() => {}),
@@ -171,14 +178,13 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
     "-i", introPath,
     "-fflags", "+genpts",
     "-i", videoPath,
+    ...(transition ? [
+      "-stream_loop", "-1",
+      "-fflags", "+genpts",
+      "-i", transition.path
+    ] : []),
     "-filter_complex",
-    [
-      "[0:v]setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,setsar=1,fps=30,format=yuv420p[v0]",
-      "[1:v]setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,setsar=1,fps=30,format=yuv420p[v1]",
-      `[0:a]aresample=async=1:first_pts=0,asetpts=PTS-STARTPTS,apad,atrim=duration=${introSecondsArg}[a0]`,
-      "[1:a]aresample=async=1:first_pts=0,asetpts=PTS-STARTPTS[a1]",
-      "[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]"
-    ].join(";"),
+    buildFinalConcatFilter({ introSecondsArg, transition }),
     "-map", "[v]",
     "-map", "[a]",
     "-c:v", "libx264",
@@ -208,7 +214,61 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
     ttsModel: speech?.model || "",
     ttsVoice: speech?.voice || "",
     ttsSpeed: speech?.speed || "",
-    ttsVolume: speech?.volume || ""
+    ttsVolume: speech?.volume || "",
+    transitionApplied: Boolean(transition),
+    transitionPath: transition?.path || "",
+    transitionDurationSeconds: transition?.durationSeconds || 0,
+    transitionKeyColor: transition?.keyColor || "",
+    transitionKeySimilarity: transition?.keySimilarity ?? "",
+    transitionKeyBlend: transition?.keyBlend ?? ""
+  };
+}
+
+function buildFinalConcatFilter({ introSecondsArg, transition }) {
+  const filters = [
+    "[0:v]setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,setsar=1,fps=30,format=yuv420p[v0]"
+  ];
+
+  if (transition) {
+    filters.push(
+      "[1:v]setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,setsar=1,fps=30,format=rgba[basev]",
+      `[2:v]setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,setsar=1,fps=30,trim=duration=${transition.durationArg},setpts=PTS-STARTPTS,format=rgba,colorkey=${transition.keyColor}:${transition.keySimilarity}:${transition.keyBlend},format=rgba[tr]`,
+      `[basev][tr]overlay=0:0:eof_action=pass:shortest=0:enable='between(t,0,${transition.durationArg})',format=yuv420p[v1]`
+    );
+  } else {
+    filters.push("[1:v]setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,setsar=1,fps=30,format=yuv420p[v1]");
+  }
+
+  filters.push(
+    `[0:a]aresample=async=1:first_pts=0,asetpts=PTS-STARTPTS,apad,atrim=duration=${introSecondsArg}[a0]`,
+    "[1:a]aresample=async=1:first_pts=0,asetpts=PTS-STARTPTS[a1]",
+    "[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]"
+  );
+  return filters.join(";");
+}
+
+async function resolveThumbnailTransition() {
+  if (!TRANSITION_ENABLED) return null;
+  const transitionPath = path.isAbsolute(TRANSITION_ASSET)
+    ? TRANSITION_ASSET
+    : path.resolve(config.rootDir, TRANSITION_ASSET);
+  if (!await fileExists(transitionPath)) {
+    console.warn(`Transisi thumbnail dilewati: asset tidak ditemukan (${transitionPath})`);
+    return null;
+  }
+  const durationSeconds = await probeDurationSeconds(transitionPath);
+  if (!durationSeconds) {
+    console.warn(`Transisi thumbnail dilewati: durasi asset tidak terbaca (${transitionPath})`);
+    return null;
+  }
+  const durationArg = formatFfmpegSeconds(clampDuration(durationSeconds, 1.5, 0.2, 5));
+  return {
+    path: transitionPath,
+    durationSeconds: Number(durationArg),
+    durationArg,
+    keyColor: TRANSITION_KEY_COLOR,
+    keySimilarity: TRANSITION_KEY_SIMILARITY,
+    keyBlend: TRANSITION_KEY_BLEND
   };
 }
 
@@ -446,6 +506,17 @@ function clampDuration(value, fallback, min, max) {
   const num = Number(value);
   if (!Number.isFinite(num)) return fallback;
   return Math.min(max, Math.max(min, num));
+}
+
+function clampNumber(value, fallback, min, max) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.min(max, Math.max(min, num));
+}
+
+function sanitizeColor(value, fallback) {
+  const cleaned = String(value || "").trim();
+  return /^0x[0-9a-f]{6}$/i.test(cleaned) ? cleaned : fallback;
 }
 
 function formatTimestamp(seconds) {

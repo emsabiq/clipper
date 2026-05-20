@@ -241,7 +241,12 @@ const envGroups = [
       field("DEEPGRAM_TTS_PRONUNCIATION_ENABLED", "Deepgram TTS IPA"),
       field("THUMBNAIL_TTS_VOLUME", "Thumbnail TTS volume"),
       field("THUMBNAIL_TTS_PAD_SECONDS", "Thumbnail TTS pad"),
-      field("THUMBNAIL_TTS_MAX_SECONDS", "Thumbnail TTS max")
+      field("THUMBNAIL_TTS_MAX_SECONDS", "Thumbnail TTS max"),
+      field("THUMBNAIL_TRANSITION_ENABLED", "Thumbnail transition"),
+      field("THUMBNAIL_TRANSITION_ASSET", "Transition asset"),
+      field("THUMBNAIL_TRANSITION_KEY_COLOR", "Transition key color"),
+      field("THUMBNAIL_TRANSITION_KEY_SIMILARITY", "Transition key similarity"),
+      field("THUMBNAIL_TRANSITION_KEY_BLEND", "Transition key blend")
     ]
   },
   {

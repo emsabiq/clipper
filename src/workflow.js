@@ -556,7 +556,13 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
         ttsModel: thumbnailIntro.ttsModel || "",
         ttsVoice: thumbnailIntro.ttsVoice || "",
         ttsSpeed: thumbnailIntro.ttsSpeed || "",
-        ttsVolume: thumbnailIntro.ttsVolume || ""
+        ttsVolume: thumbnailIntro.ttsVolume || "",
+        transitionApplied: thumbnailIntro.transitionApplied === true,
+        transitionPath: thumbnailIntro.transitionPath || "",
+        transitionDurationSeconds: thumbnailIntro.transitionDurationSeconds || 0,
+        transitionKeyColor: thumbnailIntro.transitionKeyColor || "",
+        transitionKeySimilarity: thumbnailIntro.transitionKeySimilarity ?? "",
+        transitionKeyBlend: thumbnailIntro.transitionKeyBlend ?? ""
       }
     };
   }

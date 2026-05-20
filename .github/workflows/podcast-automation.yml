@@ -321,6 +321,11 @@ jobs:
       DEEPGRAM_TTS_PRONUNCIATION_ENABLED: ${{ secrets.DEEPGRAM_TTS_PRONUNCIATION_ENABLED || 'true' }}
       THUMBNAIL_TTS_VOLUME: ${{ secrets.THUMBNAIL_TTS_VOLUME || '1.45' }}
       DEEPGRAM_TTS_TIMEOUT_SECONDS: ${{ secrets.DEEPGRAM_TTS_TIMEOUT_SECONDS || '45' }}
+      THUMBNAIL_TRANSITION_ENABLED: ${{ secrets.THUMBNAIL_TRANSITION_ENABLED || 'true' }}
+      THUMBNAIL_TRANSITION_ASSET: ${{ secrets.THUMBNAIL_TRANSITION_ASSET || 'assets/branding/transisi-thumbnail-to-content.mp4' }}
+      THUMBNAIL_TRANSITION_KEY_COLOR: ${{ secrets.THUMBNAIL_TRANSITION_KEY_COLOR || '0x000000' }}
+      THUMBNAIL_TRANSITION_KEY_SIMILARITY: ${{ secrets.THUMBNAIL_TRANSITION_KEY_SIMILARITY || '0.18' }}
+      THUMBNAIL_TRANSITION_KEY_BLEND: ${{ secrets.THUMBNAIL_TRANSITION_KEY_BLEND || '0.04' }}
       SUBTITLE_FONT_FAMILY: ${{ github.event.inputs.subtitle_font || secrets.SUBTITLE_FONT_FAMILY || 'Selawik Semibold' }}
       SUBTITLE_FALLBACK_FONTS: ${{ secrets.SUBTITLE_FALLBACK_FONTS || 'Selawik Semibold,Selawik,DejaVu Sans' }}
       SUBTITLE_FONT_SIZE: ${{ github.event.inputs.subtitle_font_size || secrets.SUBTITLE_FONT_SIZE || '56' }}
