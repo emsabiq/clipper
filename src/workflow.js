@@ -58,29 +58,19 @@ export async function runWorkflow(options = {}) {
 
   let scheduledDailyLimit = 0;
   let scheduledPostedToday = 0;
-  let scheduledDailyLimitScope = "";
 
   if (options.scheduled && options.publish) {
-    const maxScheduledLimit = Math.max(0, Number(process.env.MAX_SCHEDULED_POSTS_PER_DAY) || 0);
-    const youtubeLimit = config.youtube.enabled ? youtubeDailyUploadLimit() : 0;
-    scheduledDailyLimit = maxScheduledLimit > 0 ? maxScheduledLimit : youtubeLimit;
-    scheduledDailyLimitScope = maxScheduledLimit > 0 ? "scheduled" : scheduledDailyLimit > 0 ? "youtube" : "";
-    scheduledPostedToday = scheduledDailyLimit > 0
-      ? scheduledDailyLimitScope === "youtube"
-        ? await youtubePublishedCountToday()
-        : await publishedCountToday()
-      : 0;
+    scheduledDailyLimit = Math.max(0, Number(process.env.MAX_SCHEDULED_POSTS_PER_DAY) || 0);
+    scheduledPostedToday = scheduledDailyLimit > 0 ? await publishedCountToday() : 0;
     if (scheduledDailyLimit > 0 && scheduledPostedToday >= scheduledDailyLimit) {
       await appendLog("scheduled_skip", {
-        reason: scheduledDailyLimitScope === "youtube" ? "youtube_daily_limit_reached" : "daily_limit_reached",
-        limit_scope: scheduledDailyLimitScope,
+        reason: "daily_limit_reached",
         posted_today: scheduledPostedToday,
         daily_limit: scheduledDailyLimit
       });
       return {
         status: "scheduled_skip",
-        reason: scheduledDailyLimitScope === "youtube" ? "youtube_daily_limit_reached" : "daily_limit_reached",
-        limit_scope: scheduledDailyLimitScope,
+        reason: "daily_limit_reached",
         posted_today: scheduledPostedToday,
         daily_limit: scheduledDailyLimit
       };

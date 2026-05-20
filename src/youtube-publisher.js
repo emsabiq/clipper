@@ -57,7 +57,8 @@ export async function setYoutubeThumbnail({ videoId, thumbnailPath, accessToken 
 
   let token = accessToken;
   let lastError = null;
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  const maxAttempts = config.youtube.thumbnailUploadAttempts || 1;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       if (!token) token = await getYoutubeAccessToken();
       const response = await axios.post(
@@ -79,8 +80,9 @@ export async function setYoutubeThumbnail({ videoId, thumbnailPath, accessToken 
       return { ok: true, response: response.data };
     } catch (error) {
       lastError = wrapGoogleError(error, "YouTube thumbnail upload failed");
-      console.warn(`YouTube thumbnail attempt ${attempt}/3 gagal: ${lastError.message}`);
-      if (attempt < 3) await sleep(5000 * attempt);
+      console.warn(`YouTube thumbnail attempt ${attempt}/${maxAttempts} gagal: ${lastError.message}`);
+      if (isYoutubeThumbnailRateLimit(lastError) || attempt >= maxAttempts) break;
+      await sleep(5000 * attempt);
     }
   }
 
@@ -605,6 +607,16 @@ export function isYoutubeQuotaError(error) {
     ...(error?.response?.data?.error?.errors || []).map((item) => item.reason || item.message)
   ].filter(Boolean).join(" ");
   return /quota|quotaExceeded|dailyLimitExceeded|exceeded your/i.test(text);
+}
+
+function isYoutubeThumbnailRateLimit(error) {
+  const text = [
+    error?.message,
+    error?.reason,
+    error?.response?.data?.error?.message,
+    ...(error?.response?.data?.error?.errors || []).map((item) => item.reason || item.message)
+  ].filter(Boolean).join(" ");
+  return /too many thumbnails|thumbnail.*recently|rate.?limit/i.test(text);
 }
 
 function wrapGoogleError(error, prefix) {

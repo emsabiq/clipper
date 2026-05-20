@@ -233,6 +233,7 @@ jobs:
       AUTO_DISCOVER_QUERY: ${{ secrets.AUTO_DISCOVER_QUERY || 'podcast indonesia hari ini|podcast indonesia viral hari ini|podcast artis indonesia hari ini|podcast artis indonesia terbaru|podcast artis indonesia viral|podcast musisi indonesia terbaru|podcast musisi indonesia viral|podcast musisi indonesia hari ini|podcast ariel noah terbaru|podcast ahmad dhani terbaru|podcast ari lasso terbaru|podcast penyanyi indonesia terbaru|podcast band indonesia terbaru|podcast deddy corbuzier terbaru|podcast vindes terbaru' }}
       AUTO_DISCOVER_DAILY_QUERY: ${{ secrets.AUTO_DISCOVER_DAILY_QUERY || 'podcast musisi indonesia viral hari ini' }}
       AUTO_DISCOVER_USE_API: ${{ secrets.AUTO_DISCOVER_USE_API || 'false' }}
+      AUTO_DISCOVER_CHANNEL_ONLY: ${{ secrets.AUTO_DISCOVER_CHANNEL_ONLY || 'true' }}
       AUTO_DISCOVER_ALLOW_OAUTH: ${{ secrets.AUTO_DISCOVER_ALLOW_OAUTH || 'false' }}
       AUTO_DISCOVER_DAILY_SEARCH_ONLY: ${{ secrets.AUTO_DISCOVER_DAILY_SEARCH_ONLY || 'true' }}
       AUTO_DISCOVER_DAILY_SEARCH_RESULTS: ${{ secrets.AUTO_DISCOVER_DAILY_SEARCH_RESULTS || '3' }}
@@ -243,8 +244,8 @@ jobs:
       AUTO_DISCOVER_CACHE_SYNC_IMMEDIATE: ${{ secrets.AUTO_DISCOVER_CACHE_SYNC_IMMEDIATE || 'true' }}
       AUTO_DISCOVER_VALIDATE_URL: ${{ secrets.AUTO_DISCOVER_VALIDATE_URL || 'true' }}
       AUTO_DISCOVER_MAX_RESULTS: ${{ secrets.AUTO_DISCOVER_MAX_RESULTS || '7' }}
-      AUTO_DISCOVER_ADD_COUNT: ${{ secrets.AUTO_DISCOVER_ADD_COUNT || secrets.YOUTUBE_DAILY_UPLOAD_LIMIT || '6' }}
-      AUTO_DISCOVER_DAILY_QUEUE_LIMIT: ${{ secrets.AUTO_DISCOVER_DAILY_QUEUE_LIMIT || secrets.YOUTUBE_DAILY_UPLOAD_LIMIT || '6' }}
+      AUTO_DISCOVER_ADD_COUNT: ${{ secrets.AUTO_DISCOVER_ADD_COUNT || '15' }}
+      AUTO_DISCOVER_DAILY_QUEUE_LIMIT: ${{ secrets.AUTO_DISCOVER_DAILY_QUEUE_LIMIT || '15' }}
       AUTO_DISCOVER_EXPIRE_OLD_QUEUE: ${{ secrets.AUTO_DISCOVER_EXPIRE_OLD_QUEUE || 'true' }}
       AUTO_DISCOVER_QUEUE_TTL_DAYS: ${{ secrets.AUTO_DISCOVER_QUEUE_TTL_DAYS || '1' }}
       AUTO_DISCOVER_MIN_DURATION_SECONDS: ${{ secrets.AUTO_DISCOVER_MIN_DURATION_SECONDS || '600' }}
@@ -269,8 +270,9 @@ jobs:
       YOUTUBE_TAGS: ${{ secrets.YOUTUBE_TAGS || 'podcast,shorts,indonesia' }}
       YOUTUBE_TITLE_PREFIX: ${{ secrets.YOUTUBE_TITLE_PREFIX }}
       YOUTUBE_DESCRIPTION_FOOTER: ${{ secrets.YOUTUBE_DESCRIPTION_FOOTER }}
-      YOUTUBE_CUSTOM_THUMBNAIL_ENABLED: ${{ secrets.YOUTUBE_CUSTOM_THUMBNAIL_ENABLED || 'false' }}
+      YOUTUBE_CUSTOM_THUMBNAIL_ENABLED: ${{ secrets.YOUTUBE_CUSTOM_THUMBNAIL_ENABLED || 'true' }}
       YOUTUBE_DAILY_UPLOAD_LIMIT: ${{ secrets.YOUTUBE_DAILY_UPLOAD_LIMIT || '6' }}
+      YOUTUBE_THUMBNAIL_UPLOAD_ATTEMPTS: ${{ secrets.YOUTUBE_THUMBNAIL_UPLOAD_ATTEMPTS || '1' }}
 
       PYTHON_CMD: python
       CLIPPER_ROOT: clipper
@@ -928,6 +930,7 @@ jobs:
           echo "AUTO_DISCOVER_QUERY=$AUTO_DISCOVER_QUERY"
           echo "AUTO_DISCOVER_DAILY_QUERY=$AUTO_DISCOVER_DAILY_QUERY"
           echo "AUTO_DISCOVER_USE_API=$AUTO_DISCOVER_USE_API"
+          echo "AUTO_DISCOVER_CHANNEL_ONLY=$AUTO_DISCOVER_CHANNEL_ONLY"
           echo "AUTO_DISCOVER_ALLOW_OAUTH=$AUTO_DISCOVER_ALLOW_OAUTH"
           echo "AUTO_DISCOVER_DAILY_SEARCH_ONLY=$AUTO_DISCOVER_DAILY_SEARCH_ONLY"
           echo "AUTO_DISCOVER_DAILY_SEARCH_RESULTS=$AUTO_DISCOVER_DAILY_SEARCH_RESULTS"

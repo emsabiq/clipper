@@ -143,7 +143,8 @@ function buildConfig() {
     },
     youtube: {
       enabled: boolEnv("YOUTUBE_UPLOAD_ENABLED", false),
-      customThumbnailEnabled: boolEnv("YOUTUBE_CUSTOM_THUMBNAIL_ENABLED", false),
+      customThumbnailEnabled: boolEnv("YOUTUBE_CUSTOM_THUMBNAIL_ENABLED", true),
+      thumbnailUploadAttempts: Math.max(1, Math.min(3, Math.floor(numberEnv("YOUTUBE_THUMBNAIL_UPLOAD_ATTEMPTS", 1)))),
       dailyUploadLimit: Math.max(0, Math.floor(numberEnv("YOUTUBE_DAILY_UPLOAD_LIMIT", 6))),
       clientId: cleanText(process.env.YOUTUBE_CLIENT_ID),
       clientSecret: process.env.YOUTUBE_CLIENT_SECRET || "",

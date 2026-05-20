@@ -1001,6 +1001,7 @@ function fallbackPasses(baseQueries, baseOptions) {
   const useDailyApi = boolEnv("AUTO_DISCOVER_USE_API", false);
   const dailySearchOnly = boolEnv("AUTO_DISCOVER_DAILY_SEARCH_ONLY", true);
   const useBroadApi = useDailyApi && !dailySearchOnly;
+  const channelOnly = boolEnv("AUTO_DISCOVER_CHANNEL_ONLY", true);
   const dailyApiMaxResults = numberEnv("AUTO_DISCOVER_DAILY_SEARCH_RESULTS", 7, 1, 50);
   const trendingMaxResults = numberEnv("AUTO_DISCOVER_TRENDING_MAX_RESULTS", 25, 1, 50);
   const fallbackMaxResults = numberEnv("AUTO_DISCOVER_FALLBACK_MAX_RESULTS", 12, baseOptions.maxResults, 50);
@@ -1008,20 +1009,24 @@ function fallbackPasses(baseQueries, baseOptions) {
   const freshChannelMaxResults = numberEnv("AUTO_DISCOVER_CHANNEL_MAX_RESULTS", 3, 1, 25);
   const trendingEnabled = boolEnv("AUTO_DISCOVER_TRENDING_ENABLED", true);
 
+  const channelPass = {
+    mode: "fresh_channels",
+    channelOnly: true,
+    useApi: useBroadApi,
+    queries: [],
+    options: {
+      ...baseOptions,
+      maxResults: freshChannelMaxResults,
+      publishedAfterDays: freshUploadDays,
+      minViews: 0,
+      minViewsPerHour: 0
+    }
+  };
+
+  if (channelOnly) return [channelPass];
+
   return [
-    {
-      mode: "fresh_channels",
-      channelOnly: true,
-      useApi: useBroadApi,
-      queries: [],
-      options: {
-        ...baseOptions,
-        maxResults: freshChannelMaxResults,
-        publishedAfterDays: freshUploadDays,
-        minViews: 0,
-        minViewsPerHour: 0
-      }
-    },
+    channelPass,
     ...(useBroadApi && trendingEnabled ? [{
       mode: "today_trending",
       trending: true,
@@ -1125,7 +1130,7 @@ export async function discoverAndQueueVideos(options = {}) {
     ...DEFAULT_QUERIES
   ]);
   const maxResults = numberEnv("AUTO_DISCOVER_MAX_RESULTS", 4, 1, 25);
-  const requestedAddCount = numberEnv("AUTO_DISCOVER_ADD_COUNT", 1, 1, 10);
+  const requestedAddCount = numberEnv("AUTO_DISCOVER_ADD_COUNT", 1, 1, 15);
   const addCount = ignoreDailyQueueLimit
     ? requestedAddCount
     : Math.min(requestedAddCount, remainingDailyQueueSlots);

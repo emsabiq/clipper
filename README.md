@@ -197,7 +197,8 @@ Aturan cron harian:
 ```txt
 Workflow scheduled berjalan 15 kali per hari.
 YouTube dibatasi oleh `YOUTUBE_DAILY_UPLOAD_LIMIT` default `6` video per hari.
-Jika `MAX_SCHEDULED_POSTS_PER_DAY` diisi lebih dari `0`, nilai itu menjadi limit umum scheduled run.
+Platform lain tetap bisa lanjut mengikuti jadwal selama `MAX_SCHEDULED_POSTS_PER_DAY=0`.
+Jika `MAX_SCHEDULED_POSTS_PER_DAY` diisi lebih dari `0`, nilai itu menjadi limit umum semua platform.
 ```
 
 ---
@@ -732,7 +733,8 @@ THREADS_CONTAINER_POLL_SECONDS=6
 THREADS_CONTAINER_MAX_ATTEMPTS=90
 MAX_SCHEDULED_POSTS_PER_DAY=0
 YOUTUBE_DAILY_UPLOAD_LIMIT=6
-AUTO_DISCOVER_DAILY_QUEUE_LIMIT=6
+AUTO_DISCOVER_CHANNEL_ONLY=true
+AUTO_DISCOVER_DAILY_QUEUE_LIMIT=15
 AUTO_DISCOVER_EXPIRE_OLD_QUEUE=true
 AUTO_DISCOVER_QUEUE_TTL_DAYS=1
 ```
@@ -832,7 +834,8 @@ THUMBNAIL_INTRO_ENABLED=true
 THUMBNAIL_INTRO_SECONDS=0.9
 MAX_SCHEDULED_POSTS_PER_DAY=0
 YOUTUBE_DAILY_UPLOAD_LIMIT=6
-AUTO_DISCOVER_DAILY_QUEUE_LIMIT=6
+AUTO_DISCOVER_CHANNEL_ONLY=true
+AUTO_DISCOVER_DAILY_QUEUE_LIMIT=15
 AUTO_DISCOVER_EXPIRE_OLD_QUEUE=true
 AUTO_DISCOVER_QUEUE_TTL_DAYS=1
 
@@ -851,6 +854,7 @@ POST_CRON=0 8,13,19 * * *
 DEFAULT_THEME=auto
 AUTO_DISCOVER_QUERY=podcast indonesia hari ini|podcast indonesia viral hari ini|podcast artis indonesia hari ini|podcast artis indonesia terbaru|podcast artis indonesia viral|podcast musisi indonesia terbaru|podcast musisi indonesia viral|podcast musisi indonesia hari ini|podcast ariel noah terbaru|podcast ahmad dhani terbaru|podcast ari lasso terbaru|podcast penyanyi indonesia terbaru|podcast band indonesia terbaru|podcast deddy corbuzier terbaru|podcast vindes terbaru
 AUTO_DISCOVER_DAILY_QUERY=podcast musisi indonesia viral hari ini
+AUTO_DISCOVER_CHANNEL_ONLY=true
 AUTO_DISCOVER_TRENDING_CATEGORY_IDS=24,22,10
 AUTO_DISCOVER_CHANNEL_HANDLES=@corbuzier|@VINDES|@radityadika|@DanielManantaNetwork|@HASCreative|@podkesmas|@podhub|@Kasisolusi
 AUTO_DISCOVER_FRESH_UPLOAD_DAYS=3
@@ -866,7 +870,8 @@ YOUTUBE_OAUTH_STATE_SECRET=
 YOUTUBE_PRIVACY_STATUS=public
 YOUTUBE_CATEGORY_ID=22
 YOUTUBE_TAGS=podcast,shorts,indonesia
-YOUTUBE_CUSTOM_THUMBNAIL_ENABLED=false
+YOUTUBE_CUSTOM_THUMBNAIL_ENABLED=true
+YOUTUBE_THUMBNAIL_UPLOAD_ATTEMPTS=1
 
 FACEBOOK_UPLOAD_ENABLED=true
 FACEBOOK_PAGE_ID=
@@ -977,7 +982,7 @@ Durasi frame pembuka thumbnail. Default: `0.9`.
 
 #### `YOUTUBE_CUSTOM_THUMBNAIL_ENABLED`
 
-Upload custom thumbnail ke YouTube. Default: `false`, karena thumbnail sudah dimasukkan sebagai frame awal video agar publish lebih cepat dan tidak kena limit thumbnail.
+Upload custom thumbnail ke YouTube. Default produksi: `true`, tetapi hanya dicoba sekali (`YOUTUBE_THUMBNAIL_UPLOAD_ATTEMPTS=1`) supaya tidak membuang quota ketika YouTube menolak karena batas thumbnail terlalu sering.
 
 #### `YOUTUBE_DAILY_UPLOAD_LIMIT`
 
@@ -985,11 +990,15 @@ Batas upload YouTube per hari. Default produksi: `6`. Jika batas tercapai, uploa
 
 #### `MAX_SCHEDULED_POSTS_PER_DAY`
 
-Batas publish umum dari run terjadwal GitHub Actions per hari. Default `0`; saat `0`, guard khusus YouTube tetap memakai `YOUTUBE_DAILY_UPLOAD_LIMIT` (`6`). Jika diisi lebih dari `0`, nilai ini menjadi limit umum scheduled run.
+Batas publish umum dari run terjadwal GitHub Actions per hari. Default `0`, artinya workflow tetap mengikuti jadwal cron; guard khusus YouTube tetap memakai `YOUTUBE_DAILY_UPLOAD_LIMIT` (`6`). Jika diisi lebih dari `0`, nilai ini menjadi limit umum semua platform.
 
 #### `AUTO_DISCOVER_DAILY_QUEUE_LIMIT`
 
-Batas jumlah video auto-discovery yang boleh dibuat untuk satu `target_date`. Default: `0`, artinya tidak ada limit queue harian. Jika ingin membatasi antrean auto-discovery, isi angka lebih dari `0`.
+Batas jumlah video auto-discovery yang boleh dibuat untuk satu `target_date`. Default produksi: `15`, agar platform lain tetap punya stok video meski YouTube upload hanya 6/hari.
+
+#### `AUTO_DISCOVER_CHANNEL_ONLY`
+
+Jika `true`, auto-discovery hanya mengambil video dari `AUTO_DISCOVER_CHANNEL_HANDLES` / `AUTO_DISCOVER_CHANNEL_IDS`. Default produksi: `true`, supaya pencarian YouTube fokus ke channel berkualitas dan tidak boros `search.list`.
 
 #### `AUTO_DISCOVER_EXPIRE_OLD_QUEUE`
 
