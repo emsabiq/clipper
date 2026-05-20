@@ -30,6 +30,8 @@ let cachedVideos = [];
 let cachedJobs = [];
 let latestVideoJob = null;
 let ttsAudioUrl = "";
+let introPreviewAudioUrl = "";
+let introPreviewAudio = null;
 let videoLimit = ROW_LIMIT_DEFAULT;
 let jobLimit = ROW_LIMIT_DEFAULT;
 let effectDefaults = {
@@ -547,6 +549,7 @@ function renderLatestVideoPreview(jobs = []) {
       <div class="latestVideoActions">
         <a class="btn primary small" href="${escapeAttr(videoUrl)}" download="${escapeAttr(videoDownloadName(latestVideoJob))}" target="_blank" rel="noreferrer">Unduh MP4</a>
         ${thumbnailUrl ? `<a class="btn ghost small" href="${escapeAttr(thumbnailUrl)}" target="_blank" rel="noreferrer">Thumbnail</a>` : ""}
+        <button id="introPreviewBtn" class="btn ghost small" type="button">Uji TTS+Video</button>
         <button id="instagramDemoBtn" class="btn ghost small" type="button">Uji Post IG</button>
       </div>
       <p id="instagramDemoStatus" class="subtle">${escapeHtml(latestVideoJob.instagram_error || "")}</p>
@@ -869,6 +872,12 @@ els.ttsTestBtn?.addEventListener("click", async () => {
 });
 
 els.latestVideoPreview?.addEventListener("click", async (event) => {
+  const introButton = event.target.closest("#introPreviewBtn");
+  if (introButton && latestVideoJob) {
+    await playIntroVideoPreview(introButton);
+    return;
+  }
+
   const button = event.target.closest("#instagramDemoBtn");
   if (!button || !latestVideoJob) return;
   const title = latestVideoJob.thumbnail_text || latestVideoJob.source_title || latestVideoJob.job_id;
@@ -890,6 +899,80 @@ els.latestVideoPreview?.addEventListener("click", async (event) => {
     button.disabled = false;
   }
 });
+
+async function playIntroVideoPreview(button) {
+  const frame = els.latestVideoPreview?.querySelector(".latestVideoFrame");
+  const video = els.latestVideoPreview?.querySelector("video");
+  const status = document.querySelector("#instagramDemoStatus");
+  if (!frame || !video || !latestVideoJob) return;
+
+  button.disabled = true;
+  if (status) status.textContent = "Membuat TTS intro...";
+
+  try {
+    if (introPreviewAudio) {
+      introPreviewAudio.pause();
+      introPreviewAudio = null;
+    }
+    video.pause();
+    video.currentTime = 0;
+
+    const title = latestVideoJob.thumbnail_text || latestVideoJob.source_title || "Bagian ini bikin penasaran";
+    const result = await api("/api/tts-preview", {
+      method: "POST",
+      body: JSON.stringify({ text: title })
+    });
+
+    const overlay = ensureIntroOverlay(frame, latestVideoJob, result.text || title);
+    overlay.hidden = false;
+    frame.classList.add("playingIntro");
+
+    const bytes = base64ToBytes(result.audioBase64 || "");
+    const blob = new Blob([bytes], { type: result.mimeType || "audio/mpeg" });
+    if (introPreviewAudioUrl) URL.revokeObjectURL(introPreviewAudioUrl);
+    introPreviewAudioUrl = URL.createObjectURL(blob);
+    introPreviewAudio = new Audio(introPreviewAudioUrl);
+
+    if (status) status.textContent = `${result.model || "Deepgram"} / ${result.speed || "1.35"}x`;
+
+    await new Promise((resolve, reject) => {
+      introPreviewAudio.addEventListener("ended", resolve, { once: true });
+      introPreviewAudio.addEventListener("error", () => reject(new Error("Audio intro gagal diputar.")), { once: true });
+      introPreviewAudio.play().catch(reject);
+    });
+
+    overlay.hidden = true;
+    frame.classList.remove("playingIntro");
+    video.currentTime = 0;
+    await video.play().catch(() => {});
+    if (status) status.textContent = "Preview TTS+video selesai dibuat.";
+  } catch (error) {
+    frame.classList.remove("playingIntro");
+    const overlay = frame.querySelector(".introPreviewOverlay");
+    if (overlay) overlay.hidden = true;
+    handleApiError(error, status || els.runDetail);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function ensureIntroOverlay(frame, job, speechText) {
+  let overlay = frame.querySelector(".introPreviewOverlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.className = "introPreviewOverlay";
+    frame.appendChild(overlay);
+  }
+  const thumbnail = job.public_thumbnail_url || "";
+  overlay.innerHTML = `
+    ${thumbnail ? `<img src="${escapeAttr(thumbnail)}" alt="">` : ""}
+    <div>
+      <strong>${escapeHtml(short(job.thumbnail_text || job.source_title || "Thumbnail", 70))}</strong>
+      <span>${escapeHtml(short(speechText, 120))}</span>
+    </div>
+  `;
+  return overlay;
+}
 
 els.videoForm?.addEventListener("submit", async (event) => {
   event.preventDefault();

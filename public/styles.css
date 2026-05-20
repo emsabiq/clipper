@@ -843,6 +843,7 @@ select option {
 }
 
 .latestVideoFrame {
+  position: relative;
   min-height: 320px;
   border-radius: 8px;
   border: 1px solid var(--line);
@@ -857,6 +858,47 @@ select option {
   display: block;
   background: #050607;
   object-fit: contain;
+}
+
+.introPreviewOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  align-content: end;
+  padding: 14px;
+  background: #050607;
+}
+
+.introPreviewOverlay[hidden] {
+  display: none;
+}
+
+.introPreviewOverlay img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.introPreviewOverlay div {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.66);
+}
+
+.introPreviewOverlay strong {
+  font-size: 13px;
+}
+
+.introPreviewOverlay span {
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .latestVideoInfo {

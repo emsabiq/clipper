@@ -834,7 +834,7 @@ THUMBNAIL_INTRO_ENABLED=true
 THUMBNAIL_INTRO_SECONDS=0.9
 THUMBNAIL_TTS_ENABLED=true
 DEEPGRAM_TTS_MODEL=aura-2-amalthea-en
-DEEPGRAM_TTS_SPEED=1.18
+DEEPGRAM_TTS_SPEED=1.35
 DEEPGRAM_TTS_ACCENT_PROFILE=id
 THUMBNAIL_TTS_PAD_SECONDS=0.15
 THUMBNAIL_TTS_MAX_SECONDS=12
@@ -996,7 +996,7 @@ Model suara Deepgram untuk pembuka thumbnail. Default: `aura-2-amalthea-en` (sua
 
 #### `DEEPGRAM_TTS_SPEED`
 
-Kecepatan suara pembuka thumbnail. Default: `1.18`.
+Kecepatan suara pembuka thumbnail. Default: `1.35`.
 
 #### `DEEPGRAM_TTS_ACCENT_PROFILE`
 

@@ -177,7 +177,7 @@ export function configSummary() {
     deepgramModel: clean(process.env.DEEPGRAM_MODEL || "nova-3"),
     thumbnailTtsEnabled: boolEnv("THUMBNAIL_TTS_ENABLED", true),
     thumbnailTtsModel: clean(process.env.DEEPGRAM_TTS_MODEL || "aura-2-amalthea-en"),
-    thumbnailTtsSpeed: Number(process.env.DEEPGRAM_TTS_SPEED || 1.18),
+    thumbnailTtsSpeed: Number(process.env.DEEPGRAM_TTS_SPEED || 1.35),
     thumbnailTtsAccentProfile: clean(process.env.DEEPGRAM_TTS_ACCENT_PROFILE || "id"),
     videoFrameEnabled: boolEnv("VIDEO_FRAME_ENABLED", true),
     videoFilterEnabled: boolEnv("VIDEO_FILTER_ENABLED", true),

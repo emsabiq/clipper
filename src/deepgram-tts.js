@@ -3,7 +3,7 @@ import path from "node:path";
 import { config } from "./config.js";
 
 const DEFAULT_TTS_MODEL = "aura-2-amalthea-en";
-const DEFAULT_TTS_SPEED = 1.18;
+const DEFAULT_TTS_SPEED = 1.35;
 const DEFAULT_TTS_TIMEOUT_MS = 45000;
 const MAX_DEEPGRAM_TTS_CHARS = 2000;
 const INDONESIAN_NUMBER_WORDS = [
@@ -93,10 +93,11 @@ export function buildThumbnailSpeechText(value, options = {}) {
     text = text.charAt(0).toLocaleUpperCase("id-ID") + text.slice(1);
   }
 
-  text = text.slice(0, maxChars).replace(/\s+\S*$/, "").trim() || text.slice(0, maxChars).trim();
+  text = truncateSpeechText(text, maxChars);
   if ((options.accentProfile || settings.accentProfile) === "id") {
     text = applyIndonesianAccentHints(text);
   }
+  text = text.replace(/\?{2,}/g, "?").replace(/!{2,}/g, "!");
   if (!/[.!?]$/.test(text)) text += ".";
 
   const prefix = cleanText(options.prefix ?? settings.textPrefix);
@@ -110,22 +111,34 @@ function applyIndonesianAccentHints(value) {
     .replace(/\byg\b/gi, "yang")
     .replace(/\bdgn\b/gi, "dengan")
     .replace(/\bbgt\b/gi, "banget")
+    .replace(/\bgue coba\b/gi, "coba")
+    .replace(/\bgua coba\b/gi, "coba")
     .replace(/\bgk\b/gi, "nggak")
     .replace(/\bga\b/gi, "nggak")
     .replace(/\bgak\b/gi, "nggak")
     .replace(/\bngga\b/gi, "nggak")
     .replace(/\bnggak\b/gi, "enggak")
-    .replace(/\bgue\b/gi, "guwe")
-    .replace(/\bgua\b/gi, "guwa")
-    .replace(/\blo\b/gi, "lu")
-    .replace(/\bloe\b/gi, "lu")
-    .replace(/\bkok\b/gi, "koq")
-    .replace(/\bviral\b/gi, "vairal")
-    .replace(/\bpodcast\b/gi, "podkas")
-    .replace(/\breels\b/gi, "rils");
+    .replace(/\bgue\b/gi, "aku")
+    .replace(/\bgua\b/gi, "aku")
+    .replace(/\blo\b/gi, "kamu")
+    .replace(/\bloe\b/gi, "kamu");
 
   text = text.replace(/\b([0-9]|10)\b/g, (match) => INDONESIAN_NUMBER_WORDS[Number(match)] || match);
-  return cleanText(text);
+  return addSpeechPacing(cleanText(text));
+}
+
+function truncateSpeechText(value, maxChars) {
+  const text = cleanText(value);
+  if (text.length <= maxChars) return text;
+  const sliced = text.slice(0, maxChars);
+  return sliced.replace(/\s+\S*$/, "").trim() || sliced.trim();
+}
+
+function addSpeechPacing(value) {
+  const words = String(value || "").split(/\s+/).filter(Boolean);
+  if (words.length < 7 || /[,;:]/.test(value)) return value;
+  const splitAt = Math.min(6, Math.max(3, Math.ceil(words.length / 2)));
+  return `${words.slice(0, splitAt).join(" ")}, ${words.slice(splitAt).join(" ")}`;
 }
 
 export async function synthesizeDeepgramSpeech(options = {}) {

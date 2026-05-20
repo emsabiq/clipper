@@ -310,7 +310,7 @@ jobs:
       THUMBNAIL_TTS_TEXT_PREFIX: ${{ secrets.THUMBNAIL_TTS_TEXT_PREFIX || '' }}
       DEEPGRAM_TTS_API_KEYS: ${{ secrets.DEEPGRAM_TTS_API_KEYS || secrets.DEEPGRAM_API_KEYS }}
       DEEPGRAM_TTS_MODEL: ${{ secrets.DEEPGRAM_TTS_MODEL || 'aura-2-amalthea-en' }}
-      DEEPGRAM_TTS_SPEED: ${{ secrets.DEEPGRAM_TTS_SPEED || '1.18' }}
+      DEEPGRAM_TTS_SPEED: ${{ secrets.DEEPGRAM_TTS_SPEED || '1.35' }}
       DEEPGRAM_TTS_ACCENT_PROFILE: ${{ secrets.DEEPGRAM_TTS_ACCENT_PROFILE || 'id' }}
       DEEPGRAM_TTS_TIMEOUT_SECONDS: ${{ secrets.DEEPGRAM_TTS_TIMEOUT_SECONDS || '45' }}
       SUBTITLE_FONT_FAMILY: ${{ github.event.inputs.subtitle_font || secrets.SUBTITLE_FONT_FAMILY || 'Selawik Semibold' }}
