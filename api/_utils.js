@@ -180,7 +180,7 @@ export function configSummary() {
     thumbnailTtsModel: clean(process.env.THUMBNAIL_TTS_PROVIDER || "openai") === "openai"
       ? clean(process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts")
       : clean(process.env.DEEPGRAM_TTS_MODEL || "aura-2-saturn-en"),
-    thumbnailTtsVoice: clean(process.env.OPENAI_TTS_VOICE || "onyx"),
+    thumbnailTtsVoice: clean(process.env.OPENAI_TTS_VOICE || "nova"),
     thumbnailTtsSpeed: Number(clean(process.env.THUMBNAIL_TTS_PROVIDER || "openai") === "openai"
       ? process.env.OPENAI_TTS_SPEED || process.env.THUMBNAIL_TTS_SPEED || 1.12
       : process.env.DEEPGRAM_TTS_SPEED || 1.45),
