@@ -526,6 +526,7 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
         ttsProvider: thumbnailIntro.ttsProvider || "",
         ttsFallbackFrom: thumbnailIntro.ttsFallbackFrom || "",
         ttsFallbackError: thumbnailIntro.ttsFallbackError || "",
+        ttsKeyIndex: thumbnailIntro.ttsKeyIndex || "",
         ttsText: thumbnailIntro.ttsText || "",
         ttsModel: thumbnailIntro.ttsModel || "",
         ttsVoice: thumbnailIntro.ttsVoice || "",

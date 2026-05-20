@@ -203,6 +203,7 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
     ttsProvider: speech?.provider || "",
     ttsFallbackFrom: speech?.fallbackFrom || "",
     ttsFallbackError: speech?.fallbackError || "",
+    ttsKeyIndex: speech?.keyIndex || "",
     ttsText: speech?.text || "",
     ttsModel: speech?.model || "",
     ttsVoice: speech?.voice || "",

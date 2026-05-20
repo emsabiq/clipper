@@ -16,6 +16,7 @@ export default async function handler(req, res) {
       provider: speech.provider || deepgramTtsConfig().provider,
       fallbackFrom: speech.fallbackFrom || "",
       fallbackError: speech.fallbackError || "",
+      keyIndex: speech.keyIndex || "",
       mimeType: speech.mimeType,
       model: speech.model,
       voice: speech.voice || "",

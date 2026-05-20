@@ -221,10 +221,49 @@ export function stripPronunciationControls(value) {
 export async function synthesizeDeepgramSpeech(options = {}) {
   const settings = deepgramTtsConfig();
   const text = cleanText(options.text);
-  const apiKey = cleanText(options.apiKey || settings.apiKey);
-  if (!apiKey) throw new Error("DEEPGRAM_TTS_API_KEY / DEEPGRAM_API_KEYS belum diisi.");
+  const apiKeys = deepgramApiKeyCandidates(options, settings);
+  if (!apiKeys.length) throw new Error("DEEPGRAM_TTS_API_KEY / DEEPGRAM_API_KEYS belum diisi.");
   if (!text) throw new Error("Teks TTS kosong.");
 
+  const failures = [];
+  for (let index = 0; index < apiKeys.length; index += 1) {
+    try {
+      const speech = await synthesizeDeepgramSpeechWithKey({
+        apiKey: apiKeys[index],
+        options,
+        settings,
+        text
+      });
+      return {
+        ...speech,
+        keyIndex: index + 1,
+        keyCount: apiKeys.length
+      };
+    } catch (error) {
+      const message = compactError(error);
+      failures.push(`key ${index + 1}: ${message}`);
+      if (index < apiKeys.length - 1) {
+        console.warn(`Deepgram TTS key ${index + 1} gagal, coba key berikutnya: ${message}`);
+      }
+    }
+  }
+
+  throw new Error(`Semua Deepgram TTS key gagal: ${failures.join("; ")}`);
+}
+
+function deepgramApiKeyCandidates(options, settings) {
+  const explicitKey = cleanText(options.apiKey);
+  if (explicitKey) return [explicitKey];
+
+  const keys = [
+    ...(Array.isArray(settings.apiKeys) ? settings.apiKeys : []),
+    settings.apiKey
+  ].map(cleanText).filter(Boolean);
+
+  return [...new Set(keys)];
+}
+
+async function synthesizeDeepgramSpeechWithKey({ apiKey, options, settings, text }) {
   const url = new URL("https://api.deepgram.com/v1/speak");
   url.searchParams.set("model", cleanText(options.model || settings.deepgramModel || DEFAULT_DEEPGRAM_TTS_MODEL));
   url.searchParams.set("speed", String(clampNumber(Number(options.speed || settings.deepgramSpeed), 0.7, 1.5)));
@@ -418,6 +457,7 @@ export async function generateThumbnailSpeech({ job, text }) {
     provider: speech.provider || settings.provider,
     fallbackFrom: speech.fallbackFrom || "",
     fallbackError: speech.fallbackError || "",
+    keyIndex: speech.keyIndex || "",
     text: speechText,
     model: speech.model,
     voice: speech.voice || "",

@@ -877,8 +877,9 @@ els.ttsTestBtn?.addEventListener("click", async () => {
     const provider = result.provider || "deepgram";
     const fallback = result.fallbackFrom ? ` fallback dari ${result.fallbackFrom}` : "";
     const voice = result.voice ? ` / ${result.voice}` : "";
+    const key = result.keyIndex ? ` / key ${result.keyIndex}` : "";
     const speed = result.speed || (provider === "deepgram" ? "1.5" : "1.12");
-    els.ttsStatus.textContent = `${provider}${fallback} / ${result.model || "TTS"}${voice} / ${speed}x / vol ${result.volume || "1.45"}x / ${result.charCount || text.length} karakter`;
+    els.ttsStatus.textContent = `${provider}${fallback} / ${result.model || "TTS"}${voice}${key} / ${speed}x / vol ${result.volume || "1.45"}x / ${result.charCount || text.length} karakter`;
     await playAudioWithTtsGain(els.ttsAudio, result.volume).catch(() => {});
   } catch (error) {
     handleApiError(error, els.ttsStatus);
@@ -956,8 +957,9 @@ async function playIntroVideoPreview(button) {
       const provider = result.provider || "deepgram";
       const fallback = result.fallbackFrom ? ` fallback dari ${result.fallbackFrom}` : "";
       const voice = result.voice ? ` / ${result.voice}` : "";
+      const key = result.keyIndex ? ` / key ${result.keyIndex}` : "";
       const speed = result.speed || (provider === "deepgram" ? "1.5" : "1.12");
-      status.textContent = `${provider}${fallback} / ${result.model || "TTS"}${voice} / ${speed}x / vol ${result.volume || "1.45"}x`;
+      status.textContent = `${provider}${fallback} / ${result.model || "TTS"}${voice}${key} / ${speed}x / vol ${result.volume || "1.45"}x`;
     }
 
     await new Promise((resolve, reject) => {
