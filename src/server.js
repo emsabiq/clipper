@@ -231,6 +231,7 @@ const envGroups = [
       field("DEEPGRAM_TTS_SPEED", "Deepgram TTS speed"),
       field("DEEPGRAM_TTS_ACCENT_PROFILE", "Deepgram TTS accent"),
       field("DEEPGRAM_TTS_PRONUNCIATION_ENABLED", "Deepgram TTS IPA"),
+      field("THUMBNAIL_TTS_VOLUME", "Thumbnail TTS volume"),
       field("THUMBNAIL_TTS_PAD_SECONDS", "Thumbnail TTS pad"),
       field("THUMBNAIL_TTS_MAX_SECONDS", "Thumbnail TTS max")
     ]
@@ -332,6 +333,7 @@ app.get("/api/state", async (_req, res) => {
       thumbnailTtsSpeed: deepgramTtsConfig().speed,
       thumbnailTtsAccentProfile: deepgramTtsConfig().accentProfile,
       thumbnailTtsPronunciationEnabled: deepgramTtsConfig().pronunciationEnabled,
+      thumbnailTtsVolume: deepgramTtsConfig().volume,
       aiProvider: config.ai.provider,
       subtitleFont: process.env.SUBTITLE_FONT_FAMILY || "Segoe UI Semibold",
       subtitleMarginV: process.env.SUBTITLE_MARGIN_V || "550",
@@ -388,6 +390,7 @@ app.post("/api/tts-preview", async (req, res) => {
       mimeType: speech.mimeType,
       model: speech.model,
       speed: speech.speed,
+      volume: deepgramTtsConfig().volume,
       charCount: speech.charCount,
       audioBase64: speech.buffer.toString("base64")
     });

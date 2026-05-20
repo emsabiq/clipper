@@ -1,5 +1,5 @@
 import { methodAllowed, readBody, requireAuth, sendJson } from "./_utils.js";
-import { buildThumbnailSpeechText, stripPronunciationControls, synthesizeDeepgramSpeech } from "../src/deepgram-tts.js";
+import { buildThumbnailSpeechText, deepgramTtsConfig, stripPronunciationControls, synthesizeDeepgramSpeech } from "../src/deepgram-tts.js";
 
 export default async function handler(req, res) {
   if (!methodAllowed(req, res, ["POST"])) return;
@@ -16,6 +16,7 @@ export default async function handler(req, res) {
       mimeType: speech.mimeType,
       model: speech.model,
       speed: speech.speed,
+      volume: deepgramTtsConfig().volume,
       charCount: speech.charCount,
       audioBase64: speech.buffer.toString("base64")
     });

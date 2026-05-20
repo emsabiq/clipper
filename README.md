@@ -833,10 +833,11 @@ THUMBNAIL_PILL_TEXT=Podcast | Highlight | Viral
 THUMBNAIL_INTRO_ENABLED=true
 THUMBNAIL_INTRO_SECONDS=0.9
 THUMBNAIL_TTS_ENABLED=true
-DEEPGRAM_TTS_MODEL=aura-2-amalthea-en
+DEEPGRAM_TTS_MODEL=aura-2-saturn-en
 DEEPGRAM_TTS_SPEED=1.45
 DEEPGRAM_TTS_ACCENT_PROFILE=id
 DEEPGRAM_TTS_PRONUNCIATION_ENABLED=true
+THUMBNAIL_TTS_VOLUME=1.45
 THUMBNAIL_TTS_PAD_SECONDS=0.15
 THUMBNAIL_TTS_MAX_SECONDS=12
 MAX_SCHEDULED_POSTS_PER_DAY=0
@@ -994,7 +995,7 @@ Segmen pembuka hanya berisi thumbnail freeze + audio TTS; audio video utama dan 
 
 #### `DEEPGRAM_TTS_MODEL`
 
-Model suara Deepgram untuk pembuka thumbnail. Default: `aura-2-amalthea-en` (suara wanita dengan aksen Asia Tenggara/Filipino yang paling dekat di katalog Deepgram saat ini). Jika Deepgram menambah model Bahasa Indonesia, isi secret ini dengan model `id` yang sesuai.
+Model suara Deepgram untuk pembuka thumbnail. Default: `aura-2-saturn-en` (suara laki-laki baritone/confident yang lebih tegas di katalog Aura-2). Jika Deepgram menambah model Bahasa Indonesia, isi secret ini dengan model `id` yang sesuai.
 
 #### `DEEPGRAM_TTS_SPEED`
 
@@ -1007,6 +1008,10 @@ Profil normalisasi teks sebelum dikirim ke Deepgram. Default `id`, untuk merapik
 #### `DEEPGRAM_TTS_PRONUNCIATION_ENABLED`
 
 Mengaktifkan pronunciation override IPA untuk kata Indonesia umum seperti `gimana`, `enggak`, `cinta`, `penasaran`, dan sejenisnya. Default: `true`.
+
+#### `THUMBNAIL_TTS_VOLUME`
+
+Gain audio TTS pembuka thumbnail sebelum video utama dimulai. Default: `1.45`.
 
 #### `YOUTUBE_CUSTOM_THUMBNAIL_ENABLED`
 

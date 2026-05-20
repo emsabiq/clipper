@@ -2,8 +2,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { config } from "./config.js";
 
-const DEFAULT_TTS_MODEL = "aura-2-amalthea-en";
+const DEFAULT_TTS_MODEL = "aura-2-saturn-en";
 const DEFAULT_TTS_SPEED = 1.45;
+const DEFAULT_TTS_VOLUME = 1.45;
 const DEFAULT_TTS_TIMEOUT_MS = 45000;
 const MAX_DEEPGRAM_TTS_CHARS = 2000;
 const INDONESIAN_NUMBER_WORDS = [
@@ -109,6 +110,7 @@ export function deepgramTtsConfig() {
     textPrefix: cleanText(firstEnv(["THUMBNAIL_TTS_TEXT_PREFIX"], "")),
     accentProfile: cleanText(process.env.DEEPGRAM_TTS_ACCENT_PROFILE || "id").toLowerCase(),
     pronunciationEnabled: boolEnv("DEEPGRAM_TTS_PRONUNCIATION_ENABLED", true),
+    volume: clampNumber(numberEnv("THUMBNAIL_TTS_VOLUME", numberEnv("DEEPGRAM_TTS_VOLUME", DEFAULT_TTS_VOLUME)), 0.5, 2.2),
     maxChars: Math.min(MAX_DEEPGRAM_TTS_CHARS, Math.max(20, numberEnv("THUMBNAIL_TTS_MAX_CHARS", 220)))
   };
 }
@@ -279,6 +281,7 @@ export async function generateThumbnailSpeech({ job, text }) {
     text: speechText,
     model: speech.model,
     speed: speech.speed,
+    volume: settings.volume,
     requestId: speech.requestId,
     charCount: speech.charCount,
     mimeType: speech.mimeType

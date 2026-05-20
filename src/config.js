@@ -202,10 +202,11 @@ function buildConfig() {
       timeoutSeconds: numberEnv("DEEPGRAM_TIMEOUT_SECONDS", 900),
       tts: {
         enabled: boolEnv("THUMBNAIL_TTS_ENABLED", true),
-        model: cleanText(process.env.DEEPGRAM_TTS_MODEL || "aura-2-amalthea-en"),
+        model: cleanText(process.env.DEEPGRAM_TTS_MODEL || "aura-2-saturn-en"),
         speed: numberEnv("DEEPGRAM_TTS_SPEED", 1.45),
         accentProfile: cleanText(process.env.DEEPGRAM_TTS_ACCENT_PROFILE || "id"),
-        pronunciationEnabled: boolEnv("DEEPGRAM_TTS_PRONUNCIATION_ENABLED", true)
+        pronunciationEnabled: boolEnv("DEEPGRAM_TTS_PRONUNCIATION_ENABLED", true),
+        volume: numberEnv("THUMBNAIL_TTS_VOLUME", numberEnv("DEEPGRAM_TTS_VOLUME", 1.45))
       }
     },
     ftp: {

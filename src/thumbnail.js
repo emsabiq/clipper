@@ -125,6 +125,7 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
     ? clampDuration(speechDuration + TTS_PAD_SECONDS, INTRO_SECONDS, 0.3, TTS_MAX_SECONDS)
     : INTRO_SECONDS;
   const introSecondsArg = formatFfmpegSeconds(introSeconds);
+  const introAudioFilter = buildIntroAudioFilter({ introSeconds: introSecondsArg, speech });
 
   await Promise.all([
     fs.rm(introPath, { force: true }).catch(() => {}),
@@ -149,7 +150,7 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
     "-map", "0:v:0",
     "-map", "1:a:0",
     "-vf", "setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,fps=30,format=yuv420p",
-    "-af", `aresample=async=1:first_pts=0,asetpts=PTS-STARTPTS,apad,atrim=duration=${introSecondsArg}`,
+    "-af", introAudioFilter,
     "-r", "30",
     "-c:v", "libx264",
     "-preset", config.videoEffects.preset || "veryfast",
@@ -201,8 +202,22 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
     ttsAudioPath: speech?.path || "",
     ttsText: speech?.text || "",
     ttsModel: speech?.model || "",
-    ttsSpeed: speech?.speed || ""
+    ttsSpeed: speech?.speed || "",
+    ttsVolume: speech?.volume || ""
   };
+}
+
+function buildIntroAudioFilter({ introSeconds, speech }) {
+  const filters = [
+    "aresample=async=1:first_pts=0",
+    "asetpts=PTS-STARTPTS"
+  ];
+  if (speech?.path) {
+    filters.push(`volume=${formatFfmpegSeconds(speech.volume || 1)}`);
+    filters.push("alimiter=limit=0.95");
+  }
+  filters.push("apad", `atrim=duration=${introSeconds}`);
+  return filters.join(",");
 }
 
 function formatFfmpegSeconds(value) {

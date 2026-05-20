@@ -525,7 +525,8 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
         ttsAudioPath: thumbnailIntro.ttsAudioPath || "",
         ttsText: thumbnailIntro.ttsText || "",
         ttsModel: thumbnailIntro.ttsModel || "",
-        ttsSpeed: thumbnailIntro.ttsSpeed || ""
+        ttsSpeed: thumbnailIntro.ttsSpeed || "",
+        ttsVolume: thumbnailIntro.ttsVolume || ""
       }
     };
   }

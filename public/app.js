@@ -32,6 +32,8 @@ let latestVideoJob = null;
 let ttsAudioUrl = "";
 let introPreviewAudioUrl = "";
 let introPreviewAudio = null;
+let ttsAudioContext = null;
+const ttsGainNodes = new WeakMap();
 let videoLimit = ROW_LIMIT_DEFAULT;
 let jobLimit = ROW_LIMIT_DEFAULT;
 let effectDefaults = {
@@ -507,9 +509,10 @@ function renderTtsConfig(cfg) {
   if (!els.ttsBadge) return;
   const enabled = cfg.thumbnailTtsEnabled !== false;
   const speed = cfg.thumbnailTtsSpeed || "1.45";
+  const volume = cfg.thumbnailTtsVolume || "1.45";
   const accent = cfg.thumbnailTtsAccentProfile || "id";
   const ipa = cfg.thumbnailTtsPronunciationEnabled === false ? "" : " IPA";
-  els.ttsBadge.textContent = enabled ? `${cfg.thumbnailTtsModel || "Deepgram"} / ${accent}${ipa} @${speed}x` : "Off";
+  els.ttsBadge.textContent = enabled ? `${cfg.thumbnailTtsModel || "Deepgram"} / ${accent}${ipa} @${speed}x / vol ${volume}x` : "Off";
   els.ttsBadge.classList.toggle("warn", !enabled);
 }
 
@@ -868,8 +871,8 @@ els.ttsTestBtn?.addEventListener("click", async () => {
     ttsAudioUrl = URL.createObjectURL(blob);
     els.ttsAudio.src = ttsAudioUrl;
     els.ttsAudio.hidden = false;
-    els.ttsStatus.textContent = `${result.model || "Deepgram"} / ${result.speed || "1.45"}x / ${result.charCount || text.length} karakter`;
-    await els.ttsAudio.play().catch(() => {});
+    els.ttsStatus.textContent = `${result.model || "Deepgram"} / ${result.speed || "1.45"}x / vol ${result.volume || "1.45"}x / ${result.charCount || text.length} karakter`;
+    await playAudioWithTtsGain(els.ttsAudio, result.volume).catch(() => {});
   } catch (error) {
     handleApiError(error, els.ttsStatus);
   } finally {
@@ -942,12 +945,12 @@ async function playIntroVideoPreview(button) {
     introPreviewAudioUrl = URL.createObjectURL(blob);
     introPreviewAudio = new Audio(introPreviewAudioUrl);
 
-    if (status) status.textContent = `${result.model || "Deepgram"} / ${result.speed || "1.45"}x`;
+    if (status) status.textContent = `${result.model || "Deepgram"} / ${result.speed || "1.45"}x / vol ${result.volume || "1.45"}x`;
 
     await new Promise((resolve, reject) => {
       introPreviewAudio.addEventListener("ended", resolve, { once: true });
       introPreviewAudio.addEventListener("error", () => reject(new Error("Audio intro gagal diputar.")), { once: true });
-      introPreviewAudio.play().catch(reject);
+      playAudioWithTtsGain(introPreviewAudio, result.volume).catch(reject);
     });
 
     overlay.hidden = true;
@@ -971,6 +974,34 @@ function pauseLatestPreviewVideo() {
   const video = els.latestVideoPreview?.querySelector("video");
   if (!video) return;
   video.pause();
+}
+
+async function playAudioWithTtsGain(audio, value) {
+  const gain = normalizeTtsGain(value);
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass || gain <= 1.01) {
+    audio.volume = Math.min(1, gain);
+    return audio.play();
+  }
+
+  if (!ttsAudioContext) ttsAudioContext = new AudioContextClass();
+  let gainNode = ttsGainNodes.get(audio);
+  if (!gainNode) {
+    const source = ttsAudioContext.createMediaElementSource(audio);
+    gainNode = ttsAudioContext.createGain();
+    source.connect(gainNode);
+    gainNode.connect(ttsAudioContext.destination);
+    ttsGainNodes.set(audio, gainNode);
+  }
+  gainNode.gain.value = gain;
+  await ttsAudioContext.resume();
+  return audio.play();
+}
+
+function normalizeTtsGain(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return 1.45;
+  return Math.min(2.2, Math.max(0.5, number));
 }
 
 function ensureIntroOverlay(frame, job, speechText) {
