@@ -202,8 +202,9 @@ function buildConfig() {
       timeoutSeconds: numberEnv("DEEPGRAM_TIMEOUT_SECONDS", 900),
       tts: {
         enabled: boolEnv("THUMBNAIL_TTS_ENABLED", true),
-        model: cleanText(process.env.DEEPGRAM_TTS_MODEL || "aura-2-thalia-en"),
-        speed: numberEnv("DEEPGRAM_TTS_SPEED", 1.18)
+        model: cleanText(process.env.DEEPGRAM_TTS_MODEL || "aura-2-amalthea-en"),
+        speed: numberEnv("DEEPGRAM_TTS_SPEED", 1.18),
+        accentProfile: cleanText(process.env.DEEPGRAM_TTS_ACCENT_PROFILE || "id")
       }
     },
     ftp: {

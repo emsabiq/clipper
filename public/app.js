@@ -28,6 +28,7 @@ let pollTimer = null;
 let lastRunStatus = "idle";
 let cachedVideos = [];
 let cachedJobs = [];
+let latestVideoJob = null;
 let ttsAudioUrl = "";
 let videoLimit = ROW_LIMIT_DEFAULT;
 let jobLimit = ROW_LIMIT_DEFAULT;
@@ -79,6 +80,8 @@ const els = {
   platformGrid: document.querySelector("#platformGrid"),
   platformCaption: document.querySelector("#platformCaption"),
   youtubeReconnectBtn: document.querySelector("#youtubeReconnectBtn"),
+  latestVideoBadge: document.querySelector("#latestVideoBadge"),
+  latestVideoPreview: document.querySelector("#latestVideoPreview"),
   ttsBadge: document.querySelector("#ttsBadge"),
   ttsText: document.querySelector("#ttsText"),
   ttsTestBtn: document.querySelector("#ttsTestBtn"),
@@ -140,6 +143,7 @@ async function refresh() {
   renderInsights(stats);
   renderCharts(stats);
   renderPlatforms(state.config || {}, stats);
+  renderLatestVideoPreview(state.jobs || []);
   renderTtsConfig(state.config || {});
   renderConsole(state.activeRun);
   renderVideos(state.videos || []);
@@ -501,8 +505,53 @@ function renderTtsConfig(cfg) {
   if (!els.ttsBadge) return;
   const enabled = cfg.thumbnailTtsEnabled !== false;
   const speed = cfg.thumbnailTtsSpeed || "1.18";
-  els.ttsBadge.textContent = enabled ? `${cfg.thumbnailTtsModel || "Deepgram"} @${speed}x` : "Off";
+  const accent = cfg.thumbnailTtsAccentProfile || "id";
+  els.ttsBadge.textContent = enabled ? `${cfg.thumbnailTtsModel || "Deepgram"} / ${accent} @${speed}x` : "Off";
   els.ttsBadge.classList.toggle("warn", !enabled);
+}
+
+function renderLatestVideoPreview(jobs = []) {
+  if (!els.latestVideoPreview) return;
+  latestVideoJob = latestPostedVideoJob(jobs);
+  if (!latestVideoJob) {
+    els.latestVideoBadge.textContent = "Kosong";
+    els.latestVideoPreview.innerHTML = `
+      <div class="emptyLatest">
+        <strong>Belum ada video public.</strong>
+        <span>Video akan muncul setelah pipeline upload hasil MP4 ke storage.</span>
+      </div>
+    `;
+    return;
+  }
+
+  const title = latestVideoJob.thumbnail_text || latestVideoJob.source_title || latestVideoJob.job_id || "Video terakhir";
+  const videoUrl = latestVideoJob.public_video_url || "";
+  const thumbnailUrl = latestVideoJob.public_thumbnail_url || "";
+  const instagramStatus = latestVideoJob.instagram_media_id
+    ? "published"
+    : latestVideoJob.instagram_status || "belum dipost";
+  const postedAt = formatDateTime(latestVideoJob.published_at || latestVideoJob.updated_at || latestVideoJob.created_at);
+  els.latestVideoBadge.textContent = postedAt;
+  els.latestVideoPreview.innerHTML = `
+    <div class="latestVideoFrame">
+      <video src="${escapeAttr(videoUrl)}" poster="${escapeAttr(thumbnailUrl)}" controls preload="metadata" playsinline></video>
+    </div>
+    <div class="latestVideoInfo">
+      <strong>${escapeHtml(short(title, 90))}</strong>
+      <p>${escapeHtml(short(latestVideoJob.caption || latestVideoJob.error_message || "Siap dipreview dan diunduh.", 180))}</p>
+      <div class="latestVideoMeta">
+        <span>${pill(latestVideoJob.publish_status || latestVideoJob.status || "ready")}</span>
+        <span>IG: ${escapeHtml(instagramStatus)}</span>
+        <span>${escapeHtml(latestVideoJob.job_id || "")}</span>
+      </div>
+      <div class="latestVideoActions">
+        <a class="btn primary small" href="${escapeAttr(videoUrl)}" download="${escapeAttr(videoDownloadName(latestVideoJob))}" target="_blank" rel="noreferrer">Unduh MP4</a>
+        ${thumbnailUrl ? `<a class="btn ghost small" href="${escapeAttr(thumbnailUrl)}" target="_blank" rel="noreferrer">Thumbnail</a>` : ""}
+        <button id="instagramDemoBtn" class="btn ghost small" type="button">Uji Post IG</button>
+      </div>
+      <p id="instagramDemoStatus" class="subtle">${escapeHtml(latestVideoJob.instagram_error || "")}</p>
+    </div>
+  `;
 }
 
 function platformActivity(jobs = [], key) {
@@ -819,6 +868,29 @@ els.ttsTestBtn?.addEventListener("click", async () => {
   }
 });
 
+els.latestVideoPreview?.addEventListener("click", async (event) => {
+  const button = event.target.closest("#instagramDemoBtn");
+  if (!button || !latestVideoJob) return;
+  const title = latestVideoJob.thumbnail_text || latestVideoJob.source_title || latestVideoJob.job_id;
+  if (!window.confirm(`Post ulang video terakhir ke Instagram untuk uji coba?\n\n${title || ""}`)) return;
+  button.disabled = true;
+  const status = document.querySelector("#instagramDemoStatus");
+  if (status) status.textContent = "Mengirim ke Instagram...";
+  try {
+    const result = await api("/api/instagram/demo-publish", {
+      method: "POST",
+      body: JSON.stringify({ job_id: latestVideoJob.job_id })
+    });
+    if (status) status.textContent = `Instagram terkirim: ${result.result?.mediaId || result.job_id}`;
+    els.runDetail.textContent = `Uji Instagram selesai untuk ${result.job_id}.`;
+    await refresh();
+  } catch (error) {
+    handleApiError(error, status || els.runDetail);
+  } finally {
+    button.disabled = false;
+  }
+});
+
 els.videoForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   setSubmittersDisabled(true);
@@ -954,6 +1026,16 @@ function currentJob(state) {
   return [...jobs].sort((a, b) => String(b.updated_at || b.created_at || "").localeCompare(String(a.updated_at || a.created_at || "")))[0] || null;
 }
 
+function latestPostedVideoJob(jobs = []) {
+  return [...jobs]
+    .filter((job) => job.public_video_url)
+    .sort((a, b) => {
+      const left = String(a.published_at || a.updated_at || a.created_at || "");
+      const right = String(b.published_at || b.updated_at || b.created_at || "");
+      return right.localeCompare(left);
+    })[0] || null;
+}
+
 function isPublishedJob(job) {
   return job.status === "published" || job.publish_status === "published" || job.publish_status === "published_with_warnings";
 }
@@ -1086,6 +1168,16 @@ function toggleMoreButton(button, total, limit) {
 function short(value, length = 54) {
   const text = String(value || "");
   return text.length <= length ? text : `${text.slice(0, length - 1)}...`;
+}
+
+function videoDownloadName(job = {}) {
+  const label = job.thumbnail_text || job.source_title || job.job_id || "clipper-video";
+  const safe = String(label)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64) || "clipper-video";
+  return `${safe}.mp4`;
 }
 
 function escapeHtml(value) {

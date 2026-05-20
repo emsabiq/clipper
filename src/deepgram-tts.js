@@ -2,10 +2,23 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { config } from "./config.js";
 
-const DEFAULT_TTS_MODEL = "aura-2-thalia-en";
+const DEFAULT_TTS_MODEL = "aura-2-amalthea-en";
 const DEFAULT_TTS_SPEED = 1.18;
 const DEFAULT_TTS_TIMEOUT_MS = 45000;
 const MAX_DEEPGRAM_TTS_CHARS = 2000;
+const INDONESIAN_NUMBER_WORDS = [
+  "nol",
+  "satu",
+  "dua",
+  "tiga",
+  "empat",
+  "lima",
+  "enam",
+  "tujuh",
+  "delapan",
+  "sembilan",
+  "sepuluh"
+];
 
 function cleanText(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
@@ -56,6 +69,7 @@ export function deepgramTtsConfig() {
     bitRate: cleanText(process.env.DEEPGRAM_TTS_BIT_RATE || ""),
     mipOptOut: boolEnv("DEEPGRAM_TTS_MIP_OPT_OUT", false),
     textPrefix: cleanText(firstEnv(["THUMBNAIL_TTS_TEXT_PREFIX"], "")),
+    accentProfile: cleanText(process.env.DEEPGRAM_TTS_ACCENT_PROFILE || "id").toLowerCase(),
     maxChars: Math.min(MAX_DEEPGRAM_TTS_CHARS, Math.max(20, numberEnv("THUMBNAIL_TTS_MAX_CHARS", 220)))
   };
 }
@@ -64,7 +78,8 @@ export function buildThumbnailSpeechText(value, options = {}) {
   const settings = deepgramTtsConfig();
   const maxChars = Number(options.maxChars || settings.maxChars || 220);
   let text = cleanText(value)
-    .replace(/[`*_#]/g, "")
+    .replace(/[`*_#"'“”‘’]/g, "")
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
     .replace(/[|/\\]+/g, ", ")
     .replace(/\s+([,.!?])/g, "$1")
     .trim();
@@ -79,10 +94,38 @@ export function buildThumbnailSpeechText(value, options = {}) {
   }
 
   text = text.slice(0, maxChars).replace(/\s+\S*$/, "").trim() || text.slice(0, maxChars).trim();
+  if ((options.accentProfile || settings.accentProfile) === "id") {
+    text = applyIndonesianAccentHints(text);
+  }
   if (!/[.!?]$/.test(text)) text += ".";
 
   const prefix = cleanText(options.prefix ?? settings.textPrefix);
   return prefix ? `${prefix} ${text}` : text;
+}
+
+function applyIndonesianAccentHints(value) {
+  let text = cleanText(value)
+    .replace(/&/g, " dan ")
+    .replace(/\bdr\b/gi, "dari")
+    .replace(/\byg\b/gi, "yang")
+    .replace(/\bdgn\b/gi, "dengan")
+    .replace(/\bbgt\b/gi, "banget")
+    .replace(/\bgk\b/gi, "nggak")
+    .replace(/\bga\b/gi, "nggak")
+    .replace(/\bgak\b/gi, "nggak")
+    .replace(/\bngga\b/gi, "nggak")
+    .replace(/\bnggak\b/gi, "enggak")
+    .replace(/\bgue\b/gi, "guwe")
+    .replace(/\bgua\b/gi, "guwa")
+    .replace(/\blo\b/gi, "lu")
+    .replace(/\bloe\b/gi, "lu")
+    .replace(/\bkok\b/gi, "koq")
+    .replace(/\bviral\b/gi, "vairal")
+    .replace(/\bpodcast\b/gi, "podkas")
+    .replace(/\breels\b/gi, "rils");
+
+  text = text.replace(/\b([0-9]|10)\b/g, (match) => INDONESIAN_NUMBER_WORDS[Number(match)] || match);
+  return cleanText(text);
 }
 
 export async function synthesizeDeepgramSpeech(options = {}) {

@@ -10,6 +10,7 @@ import { makeId, todayDate } from "./job-id.js";
 import { downloadStateFromRemote, uploadStateToRemote } from "./state-sync.js";
 import { runPreflight } from "./preflight.js";
 import { exchangeTikTokCode, publishToTikTok } from "./tiktok.js";
+import { publishReel } from "./instagram.js";
 import { stripCaptionSourceCredit } from "./caption-policy.js";
 import {
   buildYoutubeAuthUrl,
@@ -228,6 +229,7 @@ const envGroups = [
       field("DEEPGRAM_TTS_API_KEYS", "Deepgram TTS keys", true),
       field("DEEPGRAM_TTS_MODEL", "Deepgram TTS model"),
       field("DEEPGRAM_TTS_SPEED", "Deepgram TTS speed"),
+      field("DEEPGRAM_TTS_ACCENT_PROFILE", "Deepgram TTS accent"),
       field("THUMBNAIL_TTS_PAD_SECONDS", "Thumbnail TTS pad"),
       field("THUMBNAIL_TTS_MAX_SECONDS", "Thumbnail TTS max")
     ]
@@ -327,6 +329,7 @@ app.get("/api/state", async (_req, res) => {
       thumbnailTtsEnabled: deepgramTtsConfig().enabled,
       thumbnailTtsModel: deepgramTtsConfig().model,
       thumbnailTtsSpeed: deepgramTtsConfig().speed,
+      thumbnailTtsAccentProfile: deepgramTtsConfig().accentProfile,
       aiProvider: config.ai.provider,
       subtitleFont: process.env.SUBTITLE_FONT_FAMILY || "Segoe UI Semibold",
       subtitleMarginV: process.env.SUBTITLE_MARGIN_V || "550",
@@ -466,6 +469,57 @@ app.post("/api/tiktok/demo-publish", async (req, res) => {
     await syncState();
     res.json({ ok: true, job_id: job.job_id, result });
   } catch (error) {
+    res.status(400).json({ error: error.message, apiCode: error.apiCode || "" });
+  }
+});
+
+app.get("/api/instagram/demo-status", async (_req, res) => {
+  const latestJob = await latestPostedVideoJob();
+  res.json({
+    configured: Boolean(config.instagram.igUserId && config.instagram.accessToken),
+    uploadEnabled: config.instagram.enabled,
+    uploadMethod: process.env.INSTAGRAM_REEL_UPLOAD_METHOD || "video_url",
+    latestJob: latestJob ? summarizeDemoJob(latestJob, "instagram") : null
+  });
+});
+
+app.post("/api/instagram/demo-publish", async (req, res) => {
+  try {
+    if (!config.instagram.enabled) throw new Error("INSTAGRAM_UPLOAD_ENABLED=false.");
+    const job = await latestPostedVideoJob(String(req.body?.job_id || "").trim());
+    if (!job) throw new Error("Belum ada video dengan public_video_url untuk demo Instagram.");
+    const caption = stripCaptionSourceCredit(job.caption || "Clipper Emsa Pro Instagram video", {
+      sourceUrl: job.source_url
+    });
+    applyInstagramDemoTimeouts();
+    await patchItem("jobs", job.job_id, {
+      instagram_status: "processing",
+      instagram_error: ""
+    });
+    const result = await publishReel({
+      videoUrl: job.public_video_url,
+      caption,
+      coverUrl: job.public_thumbnail_url || ""
+    });
+    await patchItem("jobs", job.job_id, {
+      instagram_status: result?.mediaId ? "published" : "failed",
+      instagram_media_id: result?.mediaId || "",
+      instagram_container_id: result?.containerId || "",
+      instagram_upload_method: result?.uploadMethod || "",
+      instagram_error: "",
+      publish_status: job.publish_status || "ready"
+    });
+    await syncState();
+    res.json({ ok: true, job_id: job.job_id, result });
+  } catch (error) {
+    const jobId = String(req.body?.job_id || "").trim();
+    if (jobId) {
+      await patchItem("jobs", jobId, {
+        instagram_status: "failed",
+        instagram_error: error.message
+      }).catch(() => {});
+      await syncState();
+    }
     res.status(400).json({ error: error.message, apiCode: error.apiCode || "" });
   }
 });
@@ -762,6 +816,10 @@ function buildTikTokAuthUrl() {
 }
 
 async function latestTikTokDemoJob(jobId = "") {
+  return latestPostedVideoJob(jobId);
+}
+
+async function latestPostedVideoJob(jobId = "") {
   const jobs = await readJson("jobs", []);
   if (jobId) return jobs.find((job) => job.job_id === jobId && job.public_video_url) || null;
   return [...jobs]
@@ -771,6 +829,28 @@ async function latestTikTokDemoJob(jobId = "") {
       const right = String(b.updated_at || b.published_at || b.created_at || "");
       return right.localeCompare(left);
     })[0] || null;
+}
+
+function summarizeDemoJob(job, platform = "") {
+  const statusKey = platform ? `${platform}_status` : "";
+  const idKey = platform === "instagram" ? "instagram_media_id" : platform === "tiktok" ? "tiktok_publish_id" : "";
+  return {
+    job_id: job.job_id,
+    title: job.thumbnail_text || job.source_title || job.job_id,
+    caption: job.caption || "",
+    public_video_url: job.public_video_url,
+    public_thumbnail_url: job.public_thumbnail_url || "",
+    status: statusKey ? job[statusKey] || "" : "",
+    result_id: idKey ? job[idKey] || "" : "",
+    updated_at: job.updated_at || job.published_at || job.created_at || ""
+  };
+}
+
+function applyInstagramDemoTimeouts() {
+  process.env.INSTAGRAM_CONTAINER_POLL_SECONDS ||= process.env.INSTAGRAM_DEMO_CONTAINER_POLL_SECONDS || "4";
+  process.env.INSTAGRAM_CONTAINER_MAX_ATTEMPTS ||= process.env.INSTAGRAM_DEMO_CONTAINER_MAX_ATTEMPTS || "12";
+  process.env.INSTAGRAM_VIDEO_URL_CHECK_ATTEMPTS ||= process.env.INSTAGRAM_DEMO_VIDEO_URL_CHECK_ATTEMPTS || "4";
+  process.env.INSTAGRAM_VIDEO_URL_CHECK_DELAY_SECONDS ||= process.env.INSTAGRAM_DEMO_VIDEO_URL_CHECK_DELAY_SECONDS || "3";
 }
 
 async function persistTikTokTokens() {

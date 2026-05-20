@@ -833,8 +833,9 @@ THUMBNAIL_PILL_TEXT=Podcast | Highlight | Viral
 THUMBNAIL_INTRO_ENABLED=true
 THUMBNAIL_INTRO_SECONDS=0.9
 THUMBNAIL_TTS_ENABLED=true
-DEEPGRAM_TTS_MODEL=aura-2-thalia-en
+DEEPGRAM_TTS_MODEL=aura-2-amalthea-en
 DEEPGRAM_TTS_SPEED=1.18
+DEEPGRAM_TTS_ACCENT_PROFILE=id
 THUMBNAIL_TTS_PAD_SECONDS=0.15
 THUMBNAIL_TTS_MAX_SECONDS=12
 MAX_SCHEDULED_POSTS_PER_DAY=0
@@ -991,11 +992,15 @@ Membuat suara pembuka dari teks thumbnail memakai Deepgram TTS, lalu menahan thu
 
 #### `DEEPGRAM_TTS_MODEL`
 
-Model suara Deepgram untuk pembuka thumbnail. Default: `aura-2-thalia-en` (suara wanita, cepat/enerjik). Jika Deepgram menambah model Bahasa Indonesia, isi secret ini dengan model `id` yang sesuai.
+Model suara Deepgram untuk pembuka thumbnail. Default: `aura-2-amalthea-en` (suara wanita dengan aksen Asia Tenggara/Filipino yang paling dekat di katalog Deepgram saat ini). Jika Deepgram menambah model Bahasa Indonesia, isi secret ini dengan model `id` yang sesuai.
 
 #### `DEEPGRAM_TTS_SPEED`
 
 Kecepatan suara pembuka thumbnail. Default: `1.18`.
+
+#### `DEEPGRAM_TTS_ACCENT_PROFILE`
+
+Profil normalisasi teks sebelum dikirim ke Deepgram. Default `id`, untuk merapikan slang dan bacaan judul Indonesia agar lebih natural.
 
 #### `YOUTUBE_CUSTOM_THUMBNAIL_ENABLED`
 

@@ -412,6 +412,7 @@ body.authLocked .appShell {
 .decisionPanel,
 .chartPanel,
 .formPanel,
+.latestVideoPanel,
 .ttsPanel,
 .consolePanel,
 .tablePanel {
@@ -834,6 +835,68 @@ select option {
   accent-color: var(--teal);
 }
 
+.latestVideoPreview {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.latestVideoFrame {
+  min-height: 320px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+
+.latestVideoFrame video {
+  width: 100%;
+  height: 100%;
+  min-height: 320px;
+  display: block;
+  background: #050607;
+  object-fit: contain;
+}
+
+.latestVideoInfo {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.latestVideoInfo > strong {
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.latestVideoInfo p {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.latestVideoMeta,
+.latestVideoActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.latestVideoMeta {
+  color: var(--faint);
+  font-size: 11px;
+}
+
+.emptyLatest {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+}
+
 .ttsTester {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) auto minmax(220px, 0.6fr);
@@ -1067,6 +1130,15 @@ td a {
 
   .formGrid {
     grid-template-columns: 1fr;
+  }
+
+  .latestVideoPreview {
+    grid-template-columns: 1fr;
+  }
+
+  .latestVideoFrame,
+  .latestVideoFrame video {
+    min-height: 260px;
   }
 
   .ttsTester {
