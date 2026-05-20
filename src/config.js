@@ -203,8 +203,9 @@ function buildConfig() {
       tts: {
         enabled: boolEnv("THUMBNAIL_TTS_ENABLED", true),
         model: cleanText(process.env.DEEPGRAM_TTS_MODEL || "aura-2-amalthea-en"),
-        speed: numberEnv("DEEPGRAM_TTS_SPEED", 1.35),
-        accentProfile: cleanText(process.env.DEEPGRAM_TTS_ACCENT_PROFILE || "id")
+        speed: numberEnv("DEEPGRAM_TTS_SPEED", 1.45),
+        accentProfile: cleanText(process.env.DEEPGRAM_TTS_ACCENT_PROFILE || "id"),
+        pronunciationEnabled: boolEnv("DEEPGRAM_TTS_PRONUNCIATION_ENABLED", true)
       }
     },
     ftp: {

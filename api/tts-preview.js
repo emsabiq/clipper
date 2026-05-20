@@ -1,5 +1,5 @@
 import { methodAllowed, readBody, requireAuth, sendJson } from "./_utils.js";
-import { buildThumbnailSpeechText, synthesizeDeepgramSpeech } from "../src/deepgram-tts.js";
+import { buildThumbnailSpeechText, stripPronunciationControls, synthesizeDeepgramSpeech } from "../src/deepgram-tts.js";
 
 export default async function handler(req, res) {
   if (!methodAllowed(req, res, ["POST"])) return;
@@ -12,6 +12,7 @@ export default async function handler(req, res) {
     sendJson(res, 200, {
       ok: true,
       text,
+      displayText: stripPronunciationControls(text),
       mimeType: speech.mimeType,
       model: speech.model,
       speed: speech.speed,

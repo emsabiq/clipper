@@ -3,7 +3,7 @@ import path from "node:path";
 import { config } from "./config.js";
 
 const DEFAULT_TTS_MODEL = "aura-2-amalthea-en";
-const DEFAULT_TTS_SPEED = 1.35;
+const DEFAULT_TTS_SPEED = 1.45;
 const DEFAULT_TTS_TIMEOUT_MS = 45000;
 const MAX_DEEPGRAM_TTS_CHARS = 2000;
 const INDONESIAN_NUMBER_WORDS = [
@@ -19,6 +19,44 @@ const INDONESIAN_NUMBER_WORDS = [
   "sembilan",
   "sepuluh"
 ];
+const INDONESIAN_IPA = new Map(Object.entries({
+  aku: "ˈaku",
+  alasan: "aˈlasan",
+  apa: "ˈapa",
+  artis: "ˈartis",
+  banget: "ˈbaŋət",
+  baru: "ˈbaru",
+  bagian: "baˈɡian",
+  benar: "bəˈnar",
+  bikin: "ˈbikin",
+  bisa: "ˈbisa",
+  cerita: "tʃəˈrita",
+  cinta: "ˈtʃinta",
+  coba: "ˈtʃoba",
+  dari: "ˈdari",
+  dia: "ˈdia",
+  dulu: "ˈdulu",
+  enggak: "ˈəŋɡak",
+  gimana: "ɡiˈmana",
+  hidup: "ˈhidup",
+  ini: "ˈini",
+  ikut: "ˈikut",
+  indonesia: "indoˈnesia",
+  jangan: "ˈdʒaŋan",
+  jatuh: "ˈdʒatuh",
+  kamu: "ˈkamu",
+  kok: "ˈkok",
+  lihat: "ˈlihat",
+  mikir: "ˈmikir",
+  orang: "ˈoraŋ",
+  paling: "ˈpaliŋ",
+  penasaran: "pənaˈsaran",
+  rahasia: "raˈhasia",
+  sampai: "ˈsampai",
+  semua: "səˈmua",
+  ternyata: "tərˈɲata",
+  viral: "ˈviral"
+}));
 
 function cleanText(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
@@ -70,6 +108,7 @@ export function deepgramTtsConfig() {
     mipOptOut: boolEnv("DEEPGRAM_TTS_MIP_OPT_OUT", false),
     textPrefix: cleanText(firstEnv(["THUMBNAIL_TTS_TEXT_PREFIX"], "")),
     accentProfile: cleanText(process.env.DEEPGRAM_TTS_ACCENT_PROFILE || "id").toLowerCase(),
+    pronunciationEnabled: boolEnv("DEEPGRAM_TTS_PRONUNCIATION_ENABLED", true),
     maxChars: Math.min(MAX_DEEPGRAM_TTS_CHARS, Math.max(20, numberEnv("THUMBNAIL_TTS_MAX_CHARS", 220)))
   };
 }
@@ -99,6 +138,9 @@ export function buildThumbnailSpeechText(value, options = {}) {
   }
   text = text.replace(/\?{2,}/g, "?").replace(/!{2,}/g, "!");
   if (!/[.!?]$/.test(text)) text += ".";
+  if (settings.pronunciationEnabled && (options.accentProfile || settings.accentProfile) === "id") {
+    text = applyIndonesianPronunciationControls(text);
+  }
 
   const prefix = cleanText(options.prefix ?? settings.textPrefix);
   return prefix ? `${prefix} ${text}` : text;
@@ -139,6 +181,18 @@ function addSpeechPacing(value) {
   if (words.length < 7 || /[,;:]/.test(value)) return value;
   const splitAt = Math.min(6, Math.max(3, Math.ceil(words.length / 2)));
   return `${words.slice(0, splitAt).join(" ")}, ${words.slice(splitAt).join(" ")}`;
+}
+
+function applyIndonesianPronunciationControls(value) {
+  return String(value || "").replace(/\b[A-Za-zÀ-ÿ]+\b/g, (word) => {
+    const ipa = INDONESIAN_IPA.get(word.toLocaleLowerCase("id-ID"));
+    if (!ipa) return word;
+    return `\\{"word":"${word}","pronounce":"${ipa}"\\}`;
+  });
+}
+
+export function stripPronunciationControls(value) {
+  return String(value || "").replace(/\\\{"word":"([^"]+)","pronounce":"[^"]+"\\\}/g, "$1");
 }
 
 export async function synthesizeDeepgramSpeech(options = {}) {

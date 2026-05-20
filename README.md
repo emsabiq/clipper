@@ -834,8 +834,9 @@ THUMBNAIL_INTRO_ENABLED=true
 THUMBNAIL_INTRO_SECONDS=0.9
 THUMBNAIL_TTS_ENABLED=true
 DEEPGRAM_TTS_MODEL=aura-2-amalthea-en
-DEEPGRAM_TTS_SPEED=1.35
+DEEPGRAM_TTS_SPEED=1.45
 DEEPGRAM_TTS_ACCENT_PROFILE=id
+DEEPGRAM_TTS_PRONUNCIATION_ENABLED=true
 THUMBNAIL_TTS_PAD_SECONDS=0.15
 THUMBNAIL_TTS_MAX_SECONDS=12
 MAX_SCHEDULED_POSTS_PER_DAY=0
@@ -996,11 +997,15 @@ Model suara Deepgram untuk pembuka thumbnail. Default: `aura-2-amalthea-en` (sua
 
 #### `DEEPGRAM_TTS_SPEED`
 
-Kecepatan suara pembuka thumbnail. Default: `1.35`.
+Kecepatan suara pembuka thumbnail. Default: `1.45`.
 
 #### `DEEPGRAM_TTS_ACCENT_PROFILE`
 
 Profil normalisasi teks sebelum dikirim ke Deepgram. Default `id`, untuk merapikan slang dan bacaan judul Indonesia agar lebih natural.
+
+#### `DEEPGRAM_TTS_PRONUNCIATION_ENABLED`
+
+Mengaktifkan pronunciation override IPA untuk kata Indonesia umum seperti `gimana`, `enggak`, `cinta`, `penasaran`, dan sejenisnya. Default: `true`.
 
 #### `YOUTUBE_CUSTOM_THUMBNAIL_ENABLED`
 

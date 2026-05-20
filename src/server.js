@@ -20,7 +20,7 @@ import {
   requestOrigin,
   verifyYoutubeOAuthState
 } from "./youtube-oauth.js";
-import { buildThumbnailSpeechText, deepgramTtsConfig, synthesizeDeepgramSpeech } from "./deepgram-tts.js";
+import { buildThumbnailSpeechText, deepgramTtsConfig, stripPronunciationControls, synthesizeDeepgramSpeech } from "./deepgram-tts.js";
 
 await ensureProjectDirs();
 await downloadStateFromRemote().catch(() => {});
@@ -230,6 +230,7 @@ const envGroups = [
       field("DEEPGRAM_TTS_MODEL", "Deepgram TTS model"),
       field("DEEPGRAM_TTS_SPEED", "Deepgram TTS speed"),
       field("DEEPGRAM_TTS_ACCENT_PROFILE", "Deepgram TTS accent"),
+      field("DEEPGRAM_TTS_PRONUNCIATION_ENABLED", "Deepgram TTS IPA"),
       field("THUMBNAIL_TTS_PAD_SECONDS", "Thumbnail TTS pad"),
       field("THUMBNAIL_TTS_MAX_SECONDS", "Thumbnail TTS max")
     ]
@@ -330,6 +331,7 @@ app.get("/api/state", async (_req, res) => {
       thumbnailTtsModel: deepgramTtsConfig().model,
       thumbnailTtsSpeed: deepgramTtsConfig().speed,
       thumbnailTtsAccentProfile: deepgramTtsConfig().accentProfile,
+      thumbnailTtsPronunciationEnabled: deepgramTtsConfig().pronunciationEnabled,
       aiProvider: config.ai.provider,
       subtitleFont: process.env.SUBTITLE_FONT_FAMILY || "Segoe UI Semibold",
       subtitleMarginV: process.env.SUBTITLE_MARGIN_V || "550",
@@ -382,6 +384,7 @@ app.post("/api/tts-preview", async (req, res) => {
     res.json({
       ok: true,
       text,
+      displayText: stripPronunciationControls(text),
       mimeType: speech.mimeType,
       model: speech.model,
       speed: speech.speed,

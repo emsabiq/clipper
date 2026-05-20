@@ -506,9 +506,10 @@ function platformItem(label, envEnabled, stats, key, forcedValue = "", enabledVa
 function renderTtsConfig(cfg) {
   if (!els.ttsBadge) return;
   const enabled = cfg.thumbnailTtsEnabled !== false;
-  const speed = cfg.thumbnailTtsSpeed || "1.18";
+  const speed = cfg.thumbnailTtsSpeed || "1.45";
   const accent = cfg.thumbnailTtsAccentProfile || "id";
-  els.ttsBadge.textContent = enabled ? `${cfg.thumbnailTtsModel || "Deepgram"} / ${accent} @${speed}x` : "Off";
+  const ipa = cfg.thumbnailTtsPronunciationEnabled === false ? "" : " IPA";
+  els.ttsBadge.textContent = enabled ? `${cfg.thumbnailTtsModel || "Deepgram"} / ${accent}${ipa} @${speed}x` : "Off";
   els.ttsBadge.classList.toggle("warn", !enabled);
 }
 
@@ -862,7 +863,7 @@ els.ttsTestBtn?.addEventListener("click", async () => {
     ttsAudioUrl = URL.createObjectURL(blob);
     els.ttsAudio.src = ttsAudioUrl;
     els.ttsAudio.hidden = false;
-    els.ttsStatus.textContent = `${result.model || "Deepgram"} / ${result.speed || "1.18"}x / ${result.charCount || text.length} karakter`;
+    els.ttsStatus.textContent = `${result.model || "Deepgram"} / ${result.speed || "1.45"}x / ${result.charCount || text.length} karakter`;
     await els.ttsAudio.play().catch(() => {});
   } catch (error) {
     handleApiError(error, els.ttsStatus);
@@ -923,7 +924,7 @@ async function playIntroVideoPreview(button) {
       body: JSON.stringify({ text: title })
     });
 
-    const overlay = ensureIntroOverlay(frame, latestVideoJob, result.text || title);
+    const overlay = ensureIntroOverlay(frame, latestVideoJob, result.displayText || title);
     overlay.hidden = false;
     frame.classList.add("playingIntro");
 
@@ -933,7 +934,7 @@ async function playIntroVideoPreview(button) {
     introPreviewAudioUrl = URL.createObjectURL(blob);
     introPreviewAudio = new Audio(introPreviewAudioUrl);
 
-    if (status) status.textContent = `${result.model || "Deepgram"} / ${result.speed || "1.35"}x`;
+    if (status) status.textContent = `${result.model || "Deepgram"} / ${result.speed || "1.45"}x`;
 
     await new Promise((resolve, reject) => {
       introPreviewAudio.addEventListener("ended", resolve, { once: true });
