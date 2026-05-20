@@ -94,18 +94,26 @@ export async function runWorkflow(options = {}) {
     });
   }
 
-  let discoveryAttempted = false;
-  let discoveredVideoIds = [];
+  discoveryResult = await discoverQueuedVideos(options);
+  let discoveredVideoIds = (discoveryResult?.added || [])
+    .map((video) => video.id)
+    .filter(Boolean);
+  let recoveryDiscoveryAttempted = false;
   const failedSelections = [];
   const excludedVideoIds = new Set();
   const maxAttempts = queueFailoverLimit();
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    let selection = await selectQueuedWorkflowVideo({ options, excludedVideoIds });
+    let selection = await selectQueuedWorkflowVideo({
+      options,
+      excludedVideoIds,
+      preferredVideoIds: discoveredVideoIds
+    });
 
-    if (!selection && !discoveryAttempted) {
-      discoveryAttempted = true;
-      discoveryResult = await discoverQueuedVideos(options);
+    if (!selection && !recoveryDiscoveryAttempted) {
+      recoveryDiscoveryAttempted = true;
+      const recoveryDiscoveryResult = await discoverQueuedVideos(options);
+      discoveryResult = mergeDiscoveryResults(discoveryResult, recoveryDiscoveryResult);
       discoveredVideoIds = (discoveryResult?.added || [])
         .map((video) => video.id)
         .filter(Boolean);
@@ -227,8 +235,7 @@ async function discoverQueuedVideos(options) {
   try {
     const discoveryResult = await discoverAndQueueVideos({
       theme: options.theme || config.defaultTheme,
-      targetDate: todayDate(),
-      ignoreDailyQueueLimit: !options.scheduled
+      targetDate: todayDate()
     });
     await appendLog("discovery_result", {
       skipped: Boolean(discoveryResult?.skipped),
@@ -247,6 +254,23 @@ async function discoverQueuedVideos(options) {
   }
 }
 
+function mergeDiscoveryResults(previous, next) {
+  if (!previous) return next || null;
+  if (!next) return previous;
+  return {
+    ...next,
+    added: [
+      ...(previous.added || []),
+      ...(next.added || [])
+    ],
+    expired_count: (previous.expired_count || 0) + (next.expired_count || 0),
+    daily_queue_count: next.daily_queue_count || previous.daily_queue_count || 0,
+    daily_queue_limit: next.daily_queue_limit || previous.daily_queue_limit || 0,
+    skipped: Boolean(previous.skipped && next.skipped),
+    reason: next.reason || previous.reason || ""
+  };
+}
+
 async function noVideoSelectedResult({ discoveryResult, failedSelections }) {
   await appendLog("no_video_selected", {
     discovery_added_count: discoveryResult?.added?.length || 0,
@@ -257,6 +281,7 @@ async function noVideoSelectedResult({ discoveryResult, failedSelections }) {
     daily_queue_limit: discoveryResult?.daily_queue_limit || 0,
     skipped_failed_video_count: failedSelections.length
   });
+  await uploadStateToRemote().catch(() => {});
   return {
     status: "no_video_selected",
     discovery_added_count: discoveryResult?.added?.length || 0,

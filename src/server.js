@@ -318,7 +318,7 @@ app.get("/api/state", async (_req, res) => {
       postCron: config.postCron,
       timezone: config.timezone,
       maxScheduledPostsPerDay: Number(process.env.MAX_SCHEDULED_POSTS_PER_DAY || 0),
-      autoDiscoverDailyQueueLimit: Number(process.env.AUTO_DISCOVER_DAILY_QUEUE_LIMIT || process.env.MAX_SCHEDULED_POSTS_PER_DAY || 0),
+      autoDiscoverDailyQueueLimit: Number(process.env.AUTO_DISCOVER_DAILY_QUEUE_LIMIT || 20),
       instagramEnabled: config.instagram.enabled,
       facebookEnabled: config.facebook.enabled,
       youtubeEnabled: config.youtube.enabled,

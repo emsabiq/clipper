@@ -126,8 +126,7 @@ function isAutoDiscoveredVideo(video) {
 }
 
 function autoDiscoveryDailyQueueLimit() {
-  const fallback = numberEnv("MAX_SCHEDULED_POSTS_PER_DAY", 0, 0, 1000);
-  return numberEnv("AUTO_DISCOVER_DAILY_QUEUE_LIMIT", fallback, 0, 1000);
+  return numberEnv("AUTO_DISCOVER_DAILY_QUEUE_LIMIT", 20, 0, 1000);
 }
 
 function countDailyAutoDiscoveryQueue(videos, targetDate) {
@@ -135,7 +134,7 @@ function countDailyAutoDiscoveryQueue(videos, targetDate) {
     if (!isAutoDiscoveredVideo(video)) return false;
     if (video.target_date !== targetDate) return false;
     if (video.active === false) return false;
-    return !AUTO_DISCOVERY_CLOSED_STATUSES.has(video.status || "queued");
+    return AUTO_DISCOVERY_SELECTABLE_STATUSES.has(video.status || "queued");
   }).length;
 }
 
@@ -1001,12 +1000,12 @@ function fallbackPasses(baseQueries, baseOptions) {
   const useDailyApi = boolEnv("AUTO_DISCOVER_USE_API", false);
   const dailySearchOnly = boolEnv("AUTO_DISCOVER_DAILY_SEARCH_ONLY", true);
   const useBroadApi = useDailyApi && !dailySearchOnly;
-  const channelOnly = boolEnv("AUTO_DISCOVER_CHANNEL_ONLY", true);
+  const channelOnly = boolEnv("AUTO_DISCOVER_CHANNEL_ONLY", false);
   const dailyApiMaxResults = numberEnv("AUTO_DISCOVER_DAILY_SEARCH_RESULTS", 7, 1, 50);
   const trendingMaxResults = numberEnv("AUTO_DISCOVER_TRENDING_MAX_RESULTS", 25, 1, 50);
   const fallbackMaxResults = numberEnv("AUTO_DISCOVER_FALLBACK_MAX_RESULTS", 12, baseOptions.maxResults, 50);
-  const freshUploadDays = numberEnv("AUTO_DISCOVER_FRESH_UPLOAD_DAYS", 1, 1, 30);
-  const freshChannelMaxResults = numberEnv("AUTO_DISCOVER_CHANNEL_MAX_RESULTS", 3, 1, 25);
+  const freshUploadDays = numberEnv("AUTO_DISCOVER_FRESH_UPLOAD_DAYS", 30, 1, 30);
+  const freshChannelMaxResults = numberEnv("AUTO_DISCOVER_CHANNEL_MAX_RESULTS", 10, 1, 25);
   const trendingEnabled = boolEnv("AUTO_DISCOVER_TRENDING_ENABLED", true);
 
   const channelPass = {
@@ -1129,16 +1128,16 @@ export async function discoverAndQueueVideos(options = {}) {
     ...listEnv("AUTO_DISCOVER_QUERY", []),
     ...DEFAULT_QUERIES
   ]);
-  const maxResults = numberEnv("AUTO_DISCOVER_MAX_RESULTS", 4, 1, 25);
-  const requestedAddCount = numberEnv("AUTO_DISCOVER_ADD_COUNT", 1, 1, 15);
+  const maxResults = numberEnv("AUTO_DISCOVER_MAX_RESULTS", 20, 1, 25);
+  const requestedAddCount = numberEnv("AUTO_DISCOVER_ADD_COUNT", 20, 1, 50);
   const addCount = ignoreDailyQueueLimit
     ? requestedAddCount
     : Math.min(requestedAddCount, remainingDailyQueueSlots);
   const minDuration = numberEnv("AUTO_DISCOVER_MIN_DURATION_SECONDS", 600, 0, 86400);
   const maxDuration = numberEnv("AUTO_DISCOVER_MAX_DURATION_SECONDS", 10800, 60, 86400);
-  const minViews = numberEnv("AUTO_DISCOVER_MIN_VIEWS", 25000, 0, 1000000000);
-  const minViewsPerHour = numberEnv("AUTO_DISCOVER_MIN_VIEWS_PER_HOUR", 500, 0, 1000000000);
-  const publishedAfterDays = numberEnv("AUTO_DISCOVER_PUBLISHED_AFTER_DAYS", 2, 1, 365);
+  const minViews = numberEnv("AUTO_DISCOVER_MIN_VIEWS", 0, 0, 1000000000);
+  const minViewsPerHour = numberEnv("AUTO_DISCOVER_MIN_VIEWS_PER_HOUR", 0, 0, 1000000000);
+  const publishedAfterDays = numberEnv("AUTO_DISCOVER_PUBLISHED_AFTER_DAYS", 30, 1, 365);
   const trendingMaxAgeHours = numberEnv("AUTO_DISCOVER_TRENDING_MAX_AGE_HOURS", 36, 1, 168);
   const regionCode = String(process.env.AUTO_DISCOVER_REGION_CODE || "ID").trim().toUpperCase();
   const relevanceLanguage = String(process.env.AUTO_DISCOVER_RELEVANCE_LANGUAGE || "id").trim().toLowerCase();
@@ -1160,8 +1159,10 @@ export async function discoverAndQueueVideos(options = {}) {
   const knownIds = knownVideoIds(videos, history);
 
   let selected = [];
-  let selectedPass = "";
+  const selectedPasses = [];
   for (const pass of fallbackPasses(queries, discoveryOptions)) {
+    const remainingAddCount = addCount - selected.length;
+    if (remainingAddCount <= 0) break;
     console.log(`AUTO DISCOVERY pass=${pass.mode}, queries=${pass.queries.length}, maxResults=${pass.options.maxResults}, days=${pass.options.publishedAfterDays}`);
     const rawCandidates = await loadRawCandidates({
       queries: pass.queries,
@@ -1173,15 +1174,22 @@ export async function discoverAndQueueVideos(options = {}) {
       dailyApiSearch: Boolean(pass.dailyApiSearch),
       trending: Boolean(pass.trending)
     });
-    selected = await selectDiscoveredCandidates(rawCandidates, pass.options, addCount, pass.mode);
-    if (selected.length) {
-      selectedPass = pass.mode;
-      console.log(`AUTO DISCOVERY pass=${pass.mode} memilih ${selected.length} kandidat.`);
-      break;
+    const passSelected = await selectDiscoveredCandidates(rawCandidates, pass.options, remainingAddCount, pass.mode);
+    if (passSelected.length) {
+      selected.push(...passSelected);
+      selectedPasses.push(pass.mode);
+      for (const item of passSelected) {
+        const id = item.id || extractYoutubeVideoId(item.webpage_url || item.url);
+        if (id) knownIds.add(id);
+      }
+      console.log(`AUTO DISCOVERY pass=${pass.mode} memilih ${passSelected.length} kandidat (total ${selected.length}/${addCount}).`);
+      if (selected.length >= addCount) break;
+      continue;
     }
     console.log(`AUTO DISCOVERY pass=${pass.mode} kosong; lanjut fallback.`);
   }
 
+  const selectedPass = selectedPasses[0] || "";
   const added = [];
   for (const [index, item] of selected.entries()) {
     const url = item.webpage_url || item.url || videoUrl(item.id);

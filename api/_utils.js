@@ -160,7 +160,7 @@ export function configSummary() {
     postCron: clean(process.env.POST_CRON || ""),
     timezone: clean(process.env.APP_TIMEZONE || "Asia/Jakarta"),
     maxScheduledPostsPerDay: Number(process.env.MAX_SCHEDULED_POSTS_PER_DAY || 0),
-    autoDiscoverDailyQueueLimit: Number(process.env.AUTO_DISCOVER_DAILY_QUEUE_LIMIT || process.env.MAX_SCHEDULED_POSTS_PER_DAY || 0),
+    autoDiscoverDailyQueueLimit: Number(process.env.AUTO_DISCOVER_DAILY_QUEUE_LIMIT || 20),
     instagramEnabled: boolEnv("INSTAGRAM_UPLOAD_ENABLED", true),
     facebookEnabled: boolEnv("FACEBOOK_UPLOAD_ENABLED", true),
     youtubeEnabled: boolEnv("YOUTUBE_UPLOAD_ENABLED", true),

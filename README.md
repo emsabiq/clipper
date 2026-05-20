@@ -733,8 +733,8 @@ THREADS_CONTAINER_POLL_SECONDS=6
 THREADS_CONTAINER_MAX_ATTEMPTS=90
 MAX_SCHEDULED_POSTS_PER_DAY=0
 YOUTUBE_DAILY_UPLOAD_LIMIT=6
-AUTO_DISCOVER_CHANNEL_ONLY=true
-AUTO_DISCOVER_DAILY_QUEUE_LIMIT=15
+AUTO_DISCOVER_CHANNEL_ONLY=false
+AUTO_DISCOVER_DAILY_QUEUE_LIMIT=20
 AUTO_DISCOVER_EXPIRE_OLD_QUEUE=true
 AUTO_DISCOVER_QUEUE_TTL_DAYS=1
 ```
@@ -848,8 +848,8 @@ THUMBNAIL_TTS_PAD_SECONDS=0
 THUMBNAIL_TTS_MAX_SECONDS=12
 MAX_SCHEDULED_POSTS_PER_DAY=0
 YOUTUBE_DAILY_UPLOAD_LIMIT=6
-AUTO_DISCOVER_CHANNEL_ONLY=true
-AUTO_DISCOVER_DAILY_QUEUE_LIMIT=15
+AUTO_DISCOVER_CHANNEL_ONLY=false
+AUTO_DISCOVER_DAILY_QUEUE_LIMIT=20
 AUTO_DISCOVER_EXPIRE_OLD_QUEUE=true
 AUTO_DISCOVER_QUEUE_TTL_DAYS=1
 
@@ -868,11 +868,11 @@ POST_CRON=0 8,13,19 * * *
 DEFAULT_THEME=auto
 AUTO_DISCOVER_QUERY=podcast indonesia hari ini|podcast indonesia viral hari ini|podcast artis indonesia hari ini|podcast artis indonesia terbaru|podcast artis indonesia viral|podcast musisi indonesia terbaru|podcast musisi indonesia viral|podcast musisi indonesia hari ini|podcast ariel noah terbaru|podcast ahmad dhani terbaru|podcast ari lasso terbaru|podcast penyanyi indonesia terbaru|podcast band indonesia terbaru|podcast deddy corbuzier terbaru|podcast vindes terbaru
 AUTO_DISCOVER_DAILY_QUERY=podcast musisi indonesia viral hari ini
-AUTO_DISCOVER_CHANNEL_ONLY=true
+AUTO_DISCOVER_CHANNEL_ONLY=false
 AUTO_DISCOVER_TRENDING_CATEGORY_IDS=24,22,10
 AUTO_DISCOVER_CHANNEL_HANDLES=@corbuzier|@VINDES|@radityadika|@DanielManantaNetwork|@HASCreative|@podkesmas|@podhub|@Kasisolusi
-AUTO_DISCOVER_FRESH_UPLOAD_DAYS=3
-AUTO_DISCOVER_CHANNEL_MAX_RESULTS=5
+AUTO_DISCOVER_FRESH_UPLOAD_DAYS=30
+AUTO_DISCOVER_CHANNEL_MAX_RESULTS=10
 
 GRAPH_API_VERSION=v25.0
 YOUTUBE_UPLOAD_ENABLED=true
@@ -1057,11 +1057,11 @@ Batas publish umum dari run terjadwal GitHub Actions per hari. Default `0`, arti
 
 #### `AUTO_DISCOVER_DAILY_QUEUE_LIMIT`
 
-Batas jumlah video auto-discovery yang boleh dibuat untuk satu `target_date`. Default produksi: `15`, agar platform lain tetap punya stok video meski YouTube upload hanya 6/hari.
+Batas jumlah video auto-discovery yang dijaga untuk satu `target_date`. Default produksi: `20`, agar run tanpa link tetap punya stok video meski YouTube upload hanya 6/hari.
 
 #### `AUTO_DISCOVER_CHANNEL_ONLY`
 
-Jika `true`, auto-discovery hanya mengambil video dari `AUTO_DISCOVER_CHANNEL_HANDLES` / `AUTO_DISCOVER_CHANNEL_IDS`. Default produksi: `true`, supaya pencarian YouTube fokus ke channel berkualitas dan tidak boros `search.list`.
+Jika `true`, auto-discovery hanya mengambil video dari `AUTO_DISCOVER_CHANNEL_HANDLES` / `AUTO_DISCOVER_CHANNEL_IDS`. Default produksi: `false`, supaya workflow bisa fallback ke pencarian `yt-dlp` saat channel terbaru sedang kosong.
 
 #### `AUTO_DISCOVER_EXPIRE_OLD_QUEUE`
 
