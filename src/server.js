@@ -20,7 +20,7 @@ import {
   requestOrigin,
   verifyYoutubeOAuthState
 } from "./youtube-oauth.js";
-import { buildThumbnailSpeechText, deepgramTtsConfig, stripPronunciationControls, synthesizeDeepgramSpeech } from "./deepgram-tts.js";
+import { buildThumbnailSpeechText, deepgramTtsConfig, stripPronunciationControls, synthesizeThumbnailSpeech } from "./deepgram-tts.js";
 
 await ensureProjectDirs();
 await downloadStateFromRemote().catch(() => {});
@@ -55,6 +55,7 @@ const sensitiveEnvKeys = new Set([
   "YOUTUBE_REFRESH_TOKEN",
   "YOUTUBE_OAUTH_STATE_SECRET",
   "OPENAI_API_KEY",
+  "OPENAI_TTS_API_KEY",
   "DEEPGRAM_API_KEY",
   "DEEPGRAM_API_KEYS",
   "DEEPGRAM_TTS_API_KEY",
@@ -226,6 +227,12 @@ const envGroups = [
       field("DEEPGRAM_MODEL", "Deepgram model"),
       field("DEEPGRAM_TIMEOUT_SECONDS", "Deepgram timeout"),
       field("THUMBNAIL_TTS_ENABLED", "Thumbnail TTS"),
+      field("THUMBNAIL_TTS_PROVIDER", "Thumbnail TTS provider"),
+      field("OPENAI_TTS_API_KEY", "OpenAI TTS key", true),
+      field("OPENAI_TTS_MODEL", "OpenAI TTS model"),
+      field("OPENAI_TTS_VOICE", "OpenAI TTS voice"),
+      field("OPENAI_TTS_SPEED", "OpenAI TTS speed"),
+      field("OPENAI_TTS_INSTRUCTIONS", "OpenAI TTS instructions"),
       field("DEEPGRAM_TTS_API_KEYS", "Deepgram TTS keys", true),
       field("DEEPGRAM_TTS_MODEL", "Deepgram TTS model"),
       field("DEEPGRAM_TTS_SPEED", "Deepgram TTS speed"),
@@ -329,7 +336,9 @@ app.get("/api/state", async (_req, res) => {
       backgroundMusicMapFile: process.env.BACKGROUND_MUSIC_MAP_FILE || "assets/music/music-map.json",
       backgroundMusicVolume: process.env.BACKGROUND_MUSIC_VOLUME || "0.05",
       thumbnailTtsEnabled: deepgramTtsConfig().enabled,
+      thumbnailTtsProvider: deepgramTtsConfig().provider,
       thumbnailTtsModel: deepgramTtsConfig().model,
+      thumbnailTtsVoice: deepgramTtsConfig().provider === "openai" ? deepgramTtsConfig().openaiVoice : "",
       thumbnailTtsSpeed: deepgramTtsConfig().speed,
       thumbnailTtsAccentProfile: deepgramTtsConfig().accentProfile,
       thumbnailTtsPronunciationEnabled: deepgramTtsConfig().pronunciationEnabled,
@@ -382,13 +391,15 @@ app.post("/api/preflight", async (_req, res) => {
 app.post("/api/tts-preview", async (req, res) => {
   try {
     const text = buildThumbnailSpeechText(String(req.body?.text || ""));
-    const speech = await synthesizeDeepgramSpeech({ text, tag: "dashboard-preview" });
+    const speech = await synthesizeThumbnailSpeech({ text, tag: "dashboard-preview" });
     res.json({
       ok: true,
       text,
       displayText: stripPronunciationControls(text),
+      provider: speech.provider || deepgramTtsConfig().provider,
       mimeType: speech.mimeType,
       model: speech.model,
+      voice: speech.voice || "",
       speed: speech.speed,
       volume: deepgramTtsConfig().volume,
       charCount: speech.charCount,

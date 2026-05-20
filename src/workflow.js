@@ -523,8 +523,10 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
         introPath: thumbnailIntro.introPath,
         ttsApplied: thumbnailIntro.ttsApplied === true,
         ttsAudioPath: thumbnailIntro.ttsAudioPath || "",
+        ttsProvider: thumbnailIntro.ttsProvider || "",
         ttsText: thumbnailIntro.ttsText || "",
         ttsModel: thumbnailIntro.ttsModel || "",
+        ttsVoice: thumbnailIntro.ttsVoice || "",
         ttsSpeed: thumbnailIntro.ttsSpeed || "",
         ttsVolume: thumbnailIntro.ttsVolume || ""
       }

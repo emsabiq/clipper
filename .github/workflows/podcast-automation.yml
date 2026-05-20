@@ -308,6 +308,11 @@ jobs:
       THUMBNAIL_TTS_PAD_SECONDS: ${{ secrets.THUMBNAIL_TTS_PAD_SECONDS || '0.15' }}
       THUMBNAIL_TTS_MAX_SECONDS: ${{ secrets.THUMBNAIL_TTS_MAX_SECONDS || '12' }}
       THUMBNAIL_TTS_TEXT_PREFIX: ${{ secrets.THUMBNAIL_TTS_TEXT_PREFIX || '' }}
+      THUMBNAIL_TTS_PROVIDER: ${{ secrets.THUMBNAIL_TTS_PROVIDER || 'openai' }}
+      OPENAI_TTS_MODEL: ${{ secrets.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts' }}
+      OPENAI_TTS_VOICE: ${{ secrets.OPENAI_TTS_VOICE || 'onyx' }}
+      OPENAI_TTS_SPEED: ${{ secrets.OPENAI_TTS_SPEED || '1.12' }}
+      OPENAI_TTS_INSTRUCTIONS: ${{ secrets.OPENAI_TTS_INSTRUCTIONS || 'Bicara sepenuhnya dalam Bahasa Indonesia. Gunakan pelafalan Indonesia natural seperti pria dewasa Indonesia, tegas, jelas, dan percaya diri. Jangan memakai aksen Inggris atau intonasi bule. Tempo agak cepat, artikulasi tetap jelas, cocok untuk pembuka video pendek.' }}
       DEEPGRAM_TTS_API_KEYS: ${{ secrets.DEEPGRAM_TTS_API_KEYS || secrets.DEEPGRAM_API_KEYS }}
       DEEPGRAM_TTS_MODEL: ${{ secrets.DEEPGRAM_TTS_MODEL || 'aura-2-saturn-en' }}
       DEEPGRAM_TTS_SPEED: ${{ secrets.DEEPGRAM_TTS_SPEED || '1.45' }}

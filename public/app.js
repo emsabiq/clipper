@@ -508,11 +508,13 @@ function platformItem(label, envEnabled, stats, key, forcedValue = "", enabledVa
 function renderTtsConfig(cfg) {
   if (!els.ttsBadge) return;
   const enabled = cfg.thumbnailTtsEnabled !== false;
-  const speed = cfg.thumbnailTtsSpeed || "1.45";
+  const provider = cfg.thumbnailTtsProvider || "openai";
+  const speed = cfg.thumbnailTtsSpeed || (provider === "openai" ? "1.12" : "1.45");
   const volume = cfg.thumbnailTtsVolume || "1.45";
   const accent = cfg.thumbnailTtsAccentProfile || "id";
-  const ipa = cfg.thumbnailTtsPronunciationEnabled === false ? "" : " IPA";
-  els.ttsBadge.textContent = enabled ? `${cfg.thumbnailTtsModel || "Deepgram"} / ${accent}${ipa} @${speed}x / vol ${volume}x` : "Off";
+  const ipa = provider === "deepgram" && cfg.thumbnailTtsPronunciationEnabled !== false ? " IPA" : "";
+  const voice = cfg.thumbnailTtsVoice ? ` / ${cfg.thumbnailTtsVoice}` : "";
+  els.ttsBadge.textContent = enabled ? `${provider} / ${cfg.thumbnailTtsModel || "TTS"}${voice} / ${accent}${ipa} @${speed}x / vol ${volume}x` : "Off";
   els.ttsBadge.classList.toggle("warn", !enabled);
 }
 
@@ -854,7 +856,7 @@ els.youtubeReconnectBtn?.addEventListener("click", async () => {
 els.ttsTestBtn?.addEventListener("click", async () => {
   const text = els.ttsText?.value.trim() || "Bagian ini bikin semua orang ikut mikir";
   els.ttsTestBtn.disabled = true;
-  els.ttsStatus.textContent = "Membuat audio Deepgram...";
+  els.ttsStatus.textContent = "Membuat audio Bahasa Indonesia...";
   try {
     pauseLatestPreviewVideo();
     if (introPreviewAudio) {
@@ -871,7 +873,9 @@ els.ttsTestBtn?.addEventListener("click", async () => {
     ttsAudioUrl = URL.createObjectURL(blob);
     els.ttsAudio.src = ttsAudioUrl;
     els.ttsAudio.hidden = false;
-    els.ttsStatus.textContent = `${result.model || "Deepgram"} / ${result.speed || "1.45"}x / vol ${result.volume || "1.45"}x / ${result.charCount || text.length} karakter`;
+    const provider = result.provider || "openai";
+    const voice = result.voice ? ` / ${result.voice}` : "";
+    els.ttsStatus.textContent = `${provider} / ${result.model || "TTS"}${voice} / ${result.speed || "1.12"}x / vol ${result.volume || "1.45"}x / ${result.charCount || text.length} karakter`;
     await playAudioWithTtsGain(els.ttsAudio, result.volume).catch(() => {});
   } catch (error) {
     handleApiError(error, els.ttsStatus);
@@ -945,7 +949,11 @@ async function playIntroVideoPreview(button) {
     introPreviewAudioUrl = URL.createObjectURL(blob);
     introPreviewAudio = new Audio(introPreviewAudioUrl);
 
-    if (status) status.textContent = `${result.model || "Deepgram"} / ${result.speed || "1.45"}x / vol ${result.volume || "1.45"}x`;
+    if (status) {
+      const provider = result.provider || "openai";
+      const voice = result.voice ? ` / ${result.voice}` : "";
+      status.textContent = `${provider} / ${result.model || "TTS"}${voice} / ${result.speed || "1.12"}x / vol ${result.volume || "1.45"}x`;
+    }
 
     await new Promise((resolve, reject) => {
       introPreviewAudio.addEventListener("ended", resolve, { once: true });

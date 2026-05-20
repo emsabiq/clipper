@@ -833,6 +833,11 @@ THUMBNAIL_PILL_TEXT=Podcast | Highlight | Viral
 THUMBNAIL_INTRO_ENABLED=true
 THUMBNAIL_INTRO_SECONDS=0.9
 THUMBNAIL_TTS_ENABLED=true
+THUMBNAIL_TTS_PROVIDER=openai
+OPENAI_TTS_MODEL=gpt-4o-mini-tts
+OPENAI_TTS_VOICE=onyx
+OPENAI_TTS_SPEED=1.12
+OPENAI_TTS_INSTRUCTIONS=Bicara sepenuhnya dalam Bahasa Indonesia. Gunakan pelafalan Indonesia natural seperti pria dewasa Indonesia, tegas, jelas, dan percaya diri. Jangan memakai aksen Inggris atau intonasi bule. Tempo agak cepat, artikulasi tetap jelas, cocok untuk pembuka video pendek.
 DEEPGRAM_TTS_MODEL=aura-2-saturn-en
 DEEPGRAM_TTS_SPEED=1.45
 DEEPGRAM_TTS_ACCENT_PROFILE=id
@@ -990,12 +995,32 @@ Durasi frame pembuka thumbnail saat TTS tidak aktif atau gagal. Default: `0.9`.
 
 #### `THUMBNAIL_TTS_ENABLED`
 
-Membuat suara pembuka dari teks thumbnail memakai Deepgram TTS, lalu menahan thumbnail sampai audio selesai. Default: `true`.
+Membuat suara pembuka dari teks thumbnail memakai provider TTS, lalu menahan thumbnail sampai audio selesai. Default: `true`.
 Segmen pembuka hanya berisi thumbnail freeze + audio TTS; audio video utama dan backsound baru mulai setelah durasi TTS selesai.
+
+#### `THUMBNAIL_TTS_PROVIDER`
+
+Provider TTS pembuka thumbnail. Default: `openai` supaya suara bisa diarahkan bicara Bahasa Indonesia natural. Isi `deepgram` hanya jika ingin fallback ke Deepgram.
+
+#### `OPENAI_TTS_MODEL`
+
+Model OpenAI TTS untuk pembuka thumbnail. Default: `gpt-4o-mini-tts`.
+
+#### `OPENAI_TTS_VOICE`
+
+Voice OpenAI TTS. Default: `onyx` untuk karakter laki-laki tegas.
+
+#### `OPENAI_TTS_SPEED`
+
+Kecepatan OpenAI TTS. Default: `1.12`, dibuat agak cepat tapi masih jelas untuk Bahasa Indonesia.
+
+#### `OPENAI_TTS_INSTRUCTIONS`
+
+Instruksi gaya bicara OpenAI TTS. Default memaksa Bahasa Indonesia natural, laki-laki dewasa Indonesia, tegas, dan tanpa aksen Inggris.
 
 #### `DEEPGRAM_TTS_MODEL`
 
-Model suara Deepgram untuk pembuka thumbnail. Default: `aura-2-saturn-en` (suara laki-laki baritone/confident yang lebih tegas di katalog Aura-2). Jika Deepgram menambah model Bahasa Indonesia, isi secret ini dengan model `id` yang sesuai.
+Model suara Deepgram jika `THUMBNAIL_TTS_PROVIDER=deepgram`. Default: `aura-2-saturn-en`.
 
 #### `DEEPGRAM_TTS_SPEED`
 
@@ -1003,11 +1028,11 @@ Kecepatan suara pembuka thumbnail. Default: `1.45`.
 
 #### `DEEPGRAM_TTS_ACCENT_PROFILE`
 
-Profil normalisasi teks sebelum dikirim ke Deepgram. Default `id`, untuk merapikan slang dan bacaan judul Indonesia agar lebih natural.
+Profil normalisasi teks. Default `id`, untuk merapikan slang dan bacaan judul Indonesia agar lebih natural.
 
 #### `DEEPGRAM_TTS_PRONUNCIATION_ENABLED`
 
-Mengaktifkan pronunciation override IPA untuk kata Indonesia umum seperti `gimana`, `enggak`, `cinta`, `penasaran`, dan sejenisnya. Default: `true`.
+Mengaktifkan pronunciation override IPA khusus jika `THUMBNAIL_TTS_PROVIDER=deepgram`. Default: `true`.
 
 #### `THUMBNAIL_TTS_VOLUME`
 

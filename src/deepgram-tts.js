@@ -2,11 +2,22 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { config } from "./config.js";
 
-const DEFAULT_TTS_MODEL = "aura-2-saturn-en";
-const DEFAULT_TTS_SPEED = 1.45;
+const DEFAULT_TTS_PROVIDER = "openai";
+const DEFAULT_DEEPGRAM_TTS_MODEL = "aura-2-saturn-en";
+const DEFAULT_DEEPGRAM_TTS_SPEED = 1.45;
+const DEFAULT_OPENAI_TTS_MODEL = "gpt-4o-mini-tts";
+const DEFAULT_OPENAI_TTS_VOICE = "onyx";
+const DEFAULT_OPENAI_TTS_SPEED = 1.12;
 const DEFAULT_TTS_VOLUME = 1.45;
 const DEFAULT_TTS_TIMEOUT_MS = 45000;
 const MAX_DEEPGRAM_TTS_CHARS = 2000;
+const MAX_OPENAI_TTS_CHARS = 4096;
+const DEFAULT_OPENAI_TTS_INSTRUCTIONS = [
+  "Bicara sepenuhnya dalam Bahasa Indonesia.",
+  "Gunakan pelafalan Indonesia natural seperti pria dewasa Indonesia, tegas, jelas, dan percaya diri.",
+  "Jangan memakai aksen Inggris atau intonasi bule.",
+  "Tempo agak cepat, artikulasi tetap jelas, cocok untuk pembuka video pendek."
+].join(" ");
 const INDONESIAN_NUMBER_WORDS = [
   "nol",
   "satu",
@@ -95,12 +106,18 @@ export function deepgramTtsConfig() {
   const apiKeys = cleanText(process.env.DEEPGRAM_TTS_API_KEYS)
     ? listEnv("DEEPGRAM_TTS_API_KEYS")
     : listEnv("DEEPGRAM_TTS_API_KEY", "DEEPGRAM_API_KEYS", "DEEPGRAM_API_KEY");
+  const provider = cleanText(process.env.THUMBNAIL_TTS_PROVIDER || process.env.TTS_PROVIDER || DEFAULT_TTS_PROVIDER).toLowerCase();
+  const openaiModel = cleanText(process.env.OPENAI_TTS_MODEL || DEFAULT_OPENAI_TTS_MODEL);
+  const openaiSpeed = clampNumber(numberEnv("OPENAI_TTS_SPEED", numberEnv("THUMBNAIL_TTS_SPEED", DEFAULT_OPENAI_TTS_SPEED)), 0.25, 4);
+  const deepgramModel = cleanText(process.env.DEEPGRAM_TTS_MODEL || DEFAULT_DEEPGRAM_TTS_MODEL);
+  const deepgramSpeed = clampNumber(numberEnv("DEEPGRAM_TTS_SPEED", DEFAULT_DEEPGRAM_TTS_SPEED), 0.7, 1.5);
   return {
     enabled: boolEnv("THUMBNAIL_TTS_ENABLED", true),
+    provider,
     apiKey: apiKeys[0] || config.deepgram.apiKey || "",
     apiKeys,
-    model: cleanText(process.env.DEEPGRAM_TTS_MODEL || DEFAULT_TTS_MODEL),
-    speed: clampNumber(numberEnv("DEEPGRAM_TTS_SPEED", DEFAULT_TTS_SPEED), 0.7, 1.5),
+    model: provider === "openai" ? openaiModel : deepgramModel,
+    speed: provider === "openai" ? openaiSpeed : deepgramSpeed,
     timeoutMs: Math.max(5000, numberEnv("DEEPGRAM_TTS_TIMEOUT_SECONDS", DEFAULT_TTS_TIMEOUT_MS / 1000) * 1000),
     encoding: cleanText(process.env.DEEPGRAM_TTS_ENCODING || ""),
     container: cleanText(process.env.DEEPGRAM_TTS_CONTAINER || ""),
@@ -111,6 +128,15 @@ export function deepgramTtsConfig() {
     accentProfile: cleanText(process.env.DEEPGRAM_TTS_ACCENT_PROFILE || "id").toLowerCase(),
     pronunciationEnabled: boolEnv("DEEPGRAM_TTS_PRONUNCIATION_ENABLED", true),
     volume: clampNumber(numberEnv("THUMBNAIL_TTS_VOLUME", numberEnv("DEEPGRAM_TTS_VOLUME", DEFAULT_TTS_VOLUME)), 0.5, 2.2),
+    openaiApiKey: cleanText(process.env.OPENAI_TTS_API_KEY || config.openai.apiKey || process.env.OPENAI_API_KEY || ""),
+    openaiModel,
+    openaiVoice: cleanText(process.env.OPENAI_TTS_VOICE || DEFAULT_OPENAI_TTS_VOICE),
+    openaiSpeed,
+    openaiInstructions: cleanText(process.env.OPENAI_TTS_INSTRUCTIONS || DEFAULT_OPENAI_TTS_INSTRUCTIONS),
+    openaiResponseFormat: cleanText(process.env.OPENAI_TTS_RESPONSE_FORMAT || "mp3"),
+    openaiTimeoutMs: Math.max(5000, numberEnv("OPENAI_TTS_TIMEOUT_SECONDS", DEFAULT_TTS_TIMEOUT_MS / 1000) * 1000),
+    deepgramModel,
+    deepgramSpeed,
     maxChars: Math.min(MAX_DEEPGRAM_TTS_CHARS, Math.max(20, numberEnv("THUMBNAIL_TTS_MAX_CHARS", 220)))
   };
 }
@@ -140,7 +166,7 @@ export function buildThumbnailSpeechText(value, options = {}) {
   }
   text = text.replace(/\?{2,}/g, "?").replace(/!{2,}/g, "!");
   if (!/[.!?]$/.test(text)) text += ".";
-  if (settings.pronunciationEnabled && (options.accentProfile || settings.accentProfile) === "id") {
+  if (settings.provider === "deepgram" && settings.pronunciationEnabled && (options.accentProfile || settings.accentProfile) === "id") {
     text = applyIndonesianPronunciationControls(text);
   }
 
@@ -205,8 +231,8 @@ export async function synthesizeDeepgramSpeech(options = {}) {
   if (!text) throw new Error("Teks TTS kosong.");
 
   const url = new URL("https://api.deepgram.com/v1/speak");
-  url.searchParams.set("model", cleanText(options.model || settings.model || DEFAULT_TTS_MODEL));
-  url.searchParams.set("speed", String(clampNumber(Number(options.speed || settings.speed), 0.7, 1.5)));
+  url.searchParams.set("model", cleanText(options.model || settings.deepgramModel || DEFAULT_DEEPGRAM_TTS_MODEL));
+  url.searchParams.set("speed", String(clampNumber(Number(options.speed || settings.deepgramSpeed), 0.7, 1.5)));
   if (settings.encoding) url.searchParams.set("encoding", settings.encoding);
   if (settings.container) url.searchParams.set("container", settings.container);
   if (settings.sampleRate) url.searchParams.set("sample_rate", settings.sampleRate);
@@ -241,6 +267,7 @@ export async function synthesizeDeepgramSpeech(options = {}) {
 
     return {
       buffer,
+      provider: "deepgram",
       mimeType: response.headers.get("content-type") || "audio/mpeg",
       model: response.headers.get("dg-model-name") || url.searchParams.get("model"),
       speed: response.headers.get("dg-speed-used") || url.searchParams.get("speed"),
@@ -257,12 +284,91 @@ export async function synthesizeDeepgramSpeech(options = {}) {
   }
 }
 
+export async function synthesizeOpenAiSpeech(options = {}) {
+  const settings = deepgramTtsConfig();
+  const input = cleanText(stripPronunciationControls(options.text)).slice(0, MAX_OPENAI_TTS_CHARS);
+  const apiKey = cleanText(options.apiKey || settings.openaiApiKey);
+  if (!apiKey) throw new Error("OPENAI_API_KEY / OPENAI_TTS_API_KEY belum diisi untuk TTS Bahasa Indonesia.");
+  if (!input) throw new Error("Teks TTS kosong.");
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), Number(options.timeoutMs || settings.openaiTimeoutMs));
+  const model = cleanText(options.model || settings.openaiModel || DEFAULT_OPENAI_TTS_MODEL);
+  const voice = cleanText(options.voice || settings.openaiVoice || DEFAULT_OPENAI_TTS_VOICE);
+  const speed = clampNumber(Number(options.speed || settings.openaiSpeed || DEFAULT_OPENAI_TTS_SPEED), 0.25, 4);
+  const responseFormat = cleanText(options.responseFormat || settings.openaiResponseFormat || "mp3");
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/audio/speech", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        Accept: "audio/mpeg, audio/*, application/json"
+      },
+      body: JSON.stringify({
+        model,
+        voice,
+        input,
+        instructions: cleanText(options.instructions || settings.openaiInstructions),
+        response_format: responseFormat,
+        speed
+      }),
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      throw new Error(`OpenAI TTS gagal (${response.status}): ${detail.slice(0, 400)}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    if (!buffer.length) throw new Error("OpenAI TTS mengembalikan audio kosong.");
+
+    return {
+      buffer,
+      provider: "openai",
+      mimeType: response.headers.get("content-type") || "audio/mpeg",
+      model,
+      voice,
+      speed: String(speed),
+      requestId: response.headers.get("x-request-id") || "",
+      charCount: input.length
+    };
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("OpenAI TTS timeout.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function synthesizeThumbnailSpeech(options = {}) {
+  const settings = deepgramTtsConfig();
+  if (settings.provider === "deepgram") {
+    return synthesizeDeepgramSpeech({
+      ...options,
+      model: options.model || settings.deepgramModel,
+      speed: options.speed || settings.deepgramSpeed
+    });
+  }
+
+  return synthesizeOpenAiSpeech({
+    ...options,
+    model: options.model || settings.openaiModel,
+    speed: options.speed || settings.openaiSpeed
+  });
+}
+
 export async function generateThumbnailSpeech({ job, text }) {
   const settings = deepgramTtsConfig();
   if (!settings.enabled) return null;
 
   const speechText = buildThumbnailSpeechText(text);
-  const speech = await synthesizeDeepgramSpeech({
+  const speech = await synthesizeThumbnailSpeech({
     text: speechText,
     model: settings.model,
     speed: settings.speed,
@@ -278,8 +384,10 @@ export async function generateThumbnailSpeech({ job, text }) {
   return {
     path: outputPath,
     filename,
+    provider: speech.provider || settings.provider,
     text: speechText,
     model: speech.model,
+    voice: speech.voice || "",
     speed: speech.speed,
     volume: settings.volume,
     requestId: speech.requestId,

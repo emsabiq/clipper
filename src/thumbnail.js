@@ -117,7 +117,7 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
   const outputPath = path.join(config.generatedVideoDir, `${job.job_id}-with-thumb-intro.mp4`);
 
   const speech = await generateThumbnailSpeech({ job, text }).catch((error) => {
-    console.warn(`Deepgram TTS thumbnail dilewati: ${error.message}`);
+    console.warn(`TTS thumbnail dilewati: ${error.message}`);
     return null;
   });
   const speechDuration = speech?.path ? await probeDurationSeconds(speech.path) : null;
@@ -200,8 +200,10 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
     durationSeconds: introSeconds,
     ttsApplied: Boolean(speech?.path),
     ttsAudioPath: speech?.path || "",
+    ttsProvider: speech?.provider || "",
     ttsText: speech?.text || "",
     ttsModel: speech?.model || "",
+    ttsVoice: speech?.voice || "",
     ttsSpeed: speech?.speed || "",
     ttsVolume: speech?.volume || ""
   };

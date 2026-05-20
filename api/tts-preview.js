@@ -1,5 +1,5 @@
 import { methodAllowed, readBody, requireAuth, sendJson } from "./_utils.js";
-import { buildThumbnailSpeechText, deepgramTtsConfig, stripPronunciationControls, synthesizeDeepgramSpeech } from "../src/deepgram-tts.js";
+import { buildThumbnailSpeechText, deepgramTtsConfig, stripPronunciationControls, synthesizeThumbnailSpeech } from "../src/deepgram-tts.js";
 
 export default async function handler(req, res) {
   if (!methodAllowed(req, res, ["POST"])) return;
@@ -8,13 +8,15 @@ export default async function handler(req, res) {
   try {
     const body = await readBody(req);
     const text = buildThumbnailSpeechText(String(body.text || ""));
-    const speech = await synthesizeDeepgramSpeech({ text, tag: "dashboard-preview" });
+    const speech = await synthesizeThumbnailSpeech({ text, tag: "dashboard-preview" });
     sendJson(res, 200, {
       ok: true,
       text,
       displayText: stripPronunciationControls(text),
+      provider: speech.provider || deepgramTtsConfig().provider,
       mimeType: speech.mimeType,
       model: speech.model,
+      voice: speech.voice || "",
       speed: speech.speed,
       volume: deepgramTtsConfig().volume,
       charCount: speech.charCount,
