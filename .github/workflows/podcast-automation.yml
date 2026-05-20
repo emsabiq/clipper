@@ -309,6 +309,7 @@ jobs:
       THUMBNAIL_TTS_MAX_SECONDS: ${{ secrets.THUMBNAIL_TTS_MAX_SECONDS || '12' }}
       THUMBNAIL_TTS_TEXT_PREFIX: ${{ secrets.THUMBNAIL_TTS_TEXT_PREFIX || '' }}
       THUMBNAIL_TTS_PROVIDER: ${{ secrets.THUMBNAIL_TTS_PROVIDER || 'deepgram' }}
+      THUMBNAIL_TTS_FALLBACK_PROVIDER: ${{ secrets.THUMBNAIL_TTS_FALLBACK_PROVIDER || 'openai' }}
       OPENAI_TTS_MODEL: ${{ secrets.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts' }}
       OPENAI_TTS_VOICE: ${{ secrets.OPENAI_TTS_VOICE || 'nova' }}
       OPENAI_TTS_SPEED: ${{ secrets.OPENAI_TTS_SPEED || '1.12' }}

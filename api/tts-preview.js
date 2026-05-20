@@ -14,6 +14,8 @@ export default async function handler(req, res) {
       text,
       displayText: stripPronunciationControls(text),
       provider: speech.provider || deepgramTtsConfig().provider,
+      fallbackFrom: speech.fallbackFrom || "",
+      fallbackError: speech.fallbackError || "",
       mimeType: speech.mimeType,
       model: speech.model,
       voice: speech.voice || "",

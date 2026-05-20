@@ -834,6 +834,7 @@ THUMBNAIL_INTRO_ENABLED=true
 THUMBNAIL_INTRO_SECONDS=0.9
 THUMBNAIL_TTS_ENABLED=true
 THUMBNAIL_TTS_PROVIDER=deepgram
+THUMBNAIL_TTS_FALLBACK_PROVIDER=openai
 OPENAI_TTS_MODEL=gpt-4o-mini-tts
 OPENAI_TTS_VOICE=nova
 OPENAI_TTS_SPEED=1.12
@@ -1001,6 +1002,10 @@ Segmen pembuka hanya berisi thumbnail freeze + audio TTS; audio video utama dan 
 #### `THUMBNAIL_TTS_PROVIDER`
 
 Provider TTS pembuka thumbnail. Default: `deepgram` supaya memakai voice Deepgram yang cepat dan ringan.
+
+#### `THUMBNAIL_TTS_FALLBACK_PROVIDER`
+
+Provider fallback ketika TTS utama gagal. Default: `openai`, jadi video tetap punya TTS jika Deepgram auth/timeout/error.
 
 #### `OPENAI_TTS_MODEL`
 

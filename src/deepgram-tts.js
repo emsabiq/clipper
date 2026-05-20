@@ -111,9 +111,11 @@ export function deepgramTtsConfig() {
   const openaiSpeed = clampNumber(numberEnv("OPENAI_TTS_SPEED", numberEnv("THUMBNAIL_TTS_SPEED", DEFAULT_OPENAI_TTS_SPEED)), 0.25, 4);
   const deepgramModel = cleanText(process.env.DEEPGRAM_TTS_MODEL || DEFAULT_DEEPGRAM_TTS_MODEL);
   const deepgramSpeed = clampNumber(numberEnv("DEEPGRAM_TTS_SPEED", DEFAULT_DEEPGRAM_TTS_SPEED), 0.7, 1.5);
+  const fallbackProvider = cleanText(process.env.THUMBNAIL_TTS_FALLBACK_PROVIDER || (provider === "deepgram" ? "openai" : "")).toLowerCase();
   return {
     enabled: boolEnv("THUMBNAIL_TTS_ENABLED", true),
     provider,
+    fallbackProvider,
     apiKey: apiKeys[0] || config.deepgram.apiKey || "",
     apiKeys,
     model: provider === "openai" ? openaiModel : deepgramModel,
@@ -341,19 +343,57 @@ export async function synthesizeOpenAiSpeech(options = {}) {
 
 export async function synthesizeThumbnailSpeech(options = {}) {
   const settings = deepgramTtsConfig();
-  if (settings.provider === "deepgram") {
+  const primaryProvider = normalizeTtsProvider(settings.provider);
+  const fallbackProvider = normalizeTtsProvider(settings.fallbackProvider);
+
+  try {
+    return await synthesizeSpeechWithProvider(primaryProvider, options, settings);
+  } catch (error) {
+    if (!fallbackProvider || fallbackProvider === primaryProvider) throw error;
+
+    const primaryMessage = compactError(error);
+    console.warn(`TTS ${primaryProvider} gagal, fallback ke ${fallbackProvider}: ${primaryMessage}`);
+    try {
+      const speech = await synthesizeSpeechWithProvider(fallbackProvider, options, settings);
+      return {
+        ...speech,
+        fallbackFrom: primaryProvider,
+        fallbackError: primaryMessage
+      };
+    } catch (fallbackError) {
+      throw new Error(
+        `TTS ${primaryProvider} gagal: ${primaryMessage}; fallback ${fallbackProvider} juga gagal: ${compactError(fallbackError)}`
+      );
+    }
+  }
+}
+
+function synthesizeSpeechWithProvider(provider, options, settings) {
+  if (provider === "deepgram") {
     return synthesizeDeepgramSpeech({
       ...options,
-      model: options.model || settings.deepgramModel,
-      speed: options.speed || settings.deepgramSpeed
+      model: settings.deepgramModel,
+      speed: settings.deepgramSpeed
     });
   }
 
   return synthesizeOpenAiSpeech({
     ...options,
-    model: options.model || settings.openaiModel,
-    speed: options.speed || settings.openaiSpeed
+    model: settings.openaiModel,
+    speed: settings.openaiSpeed
   });
+}
+
+function normalizeTtsProvider(value) {
+  const provider = cleanText(value).toLowerCase();
+  if (provider === "deepgram" || provider === "openai") return provider;
+  return "";
+}
+
+function compactError(error) {
+  return String(error?.message || error || "unknown_error")
+    .replace(/\s+/g, " ")
+    .slice(0, 280);
 }
 
 export async function generateThumbnailSpeech({ job, text }) {
@@ -363,8 +403,6 @@ export async function generateThumbnailSpeech({ job, text }) {
   const speechText = buildThumbnailSpeechText(text);
   const speech = await synthesizeThumbnailSpeech({
     text: speechText,
-    model: settings.model,
-    speed: settings.speed,
     tag: "thumbnail-intro"
   });
 
@@ -378,6 +416,8 @@ export async function generateThumbnailSpeech({ job, text }) {
     path: outputPath,
     filename,
     provider: speech.provider || settings.provider,
+    fallbackFrom: speech.fallbackFrom || "",
+    fallbackError: speech.fallbackError || "",
     text: speechText,
     model: speech.model,
     voice: speech.voice || "",

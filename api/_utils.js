@@ -177,6 +177,7 @@ export function configSummary() {
     deepgramModel: clean(process.env.DEEPGRAM_MODEL || "nova-3"),
     thumbnailTtsEnabled: boolEnv("THUMBNAIL_TTS_ENABLED", true),
     thumbnailTtsProvider: clean(process.env.THUMBNAIL_TTS_PROVIDER || "deepgram"),
+    thumbnailTtsFallbackProvider: clean(process.env.THUMBNAIL_TTS_FALLBACK_PROVIDER || "openai"),
     thumbnailTtsModel: clean(process.env.THUMBNAIL_TTS_PROVIDER || "deepgram") === "openai"
       ? clean(process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts")
       : clean(process.env.DEEPGRAM_TTS_MODEL || "aura-2-amalthea-en"),
