@@ -33,6 +33,7 @@ const TRANSITION_ASSET = process.env.THUMBNAIL_TRANSITION_ASSET || DEFAULT_TRANS
 const TRANSITION_KEY_COLOR = sanitizeColor(process.env.THUMBNAIL_TRANSITION_KEY_COLOR, "0x000000");
 const TRANSITION_KEY_SIMILARITY = clampNumber(process.env.THUMBNAIL_TRANSITION_KEY_SIMILARITY, 0.18, 0, 1);
 const TRANSITION_KEY_BLEND = clampNumber(process.env.THUMBNAIL_TRANSITION_KEY_BLEND, 0.04, 0, 1);
+const TRANSITION_SPEED = clampNumber(process.env.THUMBNAIL_TRANSITION_SPEED, 1.28, 0.5, 3);
 const rendererPath = path.join(config.srcDir, "branding-renderer.py");
 
 export async function generateThumbnail({ job, videoPath, text }) {
@@ -218,6 +219,8 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
     transitionApplied: Boolean(transition),
     transitionPath: transition?.path || "",
     transitionDurationSeconds: transition?.durationSeconds || 0,
+    transitionSourceDurationSeconds: transition?.sourceDurationSeconds || 0,
+    transitionSpeed: transition?.speed || "",
     transitionKeyColor: transition?.keyColor || "",
     transitionKeySimilarity: transition?.keySimilarity ?? "",
     transitionKeyBlend: transition?.keyBlend ?? ""
@@ -232,7 +235,7 @@ function buildFinalConcatFilter({ introSecondsArg, transition }) {
   if (transition) {
     filters.push(
       "[1:v]setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,setsar=1,fps=30,format=rgba[basev]",
-      `[2:v]setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,setsar=1,fps=30,trim=duration=${transition.durationArg},setpts=PTS-STARTPTS,format=rgba,colorkey=${transition.keyColor}:${transition.keySimilarity}:${transition.keyBlend},format=rgba[tr]`,
+      `[2:v]setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,setsar=1,fps=30,trim=duration=${transition.sourceDurationArg},setpts=(PTS-STARTPTS)/${transition.speedArg},format=rgba,colorkey=${transition.keyColor}:${transition.keySimilarity}:${transition.keyBlend},format=rgba[tr]`,
       `[basev][tr]overlay=0:0:eof_action=pass:shortest=0:enable='between(t,0,${transition.durationArg})',format=yuv420p[v1]`
     );
   } else {
@@ -261,11 +264,16 @@ async function resolveThumbnailTransition() {
     console.warn(`Transisi thumbnail dilewati: durasi asset tidak terbaca (${transitionPath})`);
     return null;
   }
-  const durationArg = formatFfmpegSeconds(clampDuration(durationSeconds, 1.5, 0.2, 5));
+  const sourceDurationSeconds = clampDuration(durationSeconds, 1.5, 0.2, 5);
+  const durationArg = formatFfmpegSeconds(clampDuration(sourceDurationSeconds / TRANSITION_SPEED, 1.5, 0.2, 5));
   return {
     path: transitionPath,
     durationSeconds: Number(durationArg),
     durationArg,
+    sourceDurationSeconds,
+    sourceDurationArg: formatFfmpegSeconds(sourceDurationSeconds),
+    speed: TRANSITION_SPEED,
+    speedArg: formatFfmpegSeconds(TRANSITION_SPEED),
     keyColor: TRANSITION_KEY_COLOR,
     keySimilarity: TRANSITION_KEY_SIMILARITY,
     keyBlend: TRANSITION_KEY_BLEND

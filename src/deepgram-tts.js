@@ -51,23 +51,27 @@ const INDONESIAN_IPA = new Map(Object.entries({
   enggak: "ˈəŋɡak",
   gimana: "ɡiˈmana",
   hidup: "ˈhidup",
+  hembus: "\u02c8h\u0259mbus",
   ini: "ˈini",
   ikut: "ˈikut",
   indonesia: "indoˈnesia",
   jangan: "ˈdʒaŋan",
   jatuh: "ˈdʒatuh",
   kamu: "ˈkamu",
+  komunikasi: "komunika\u02c8si",
   kok: "ˈkok",
   lihat: "ˈlihat",
   mikir: "ˈmikir",
   orang: "ˈoraŋ",
   paling: "ˈpaliŋ",
   penasaran: "pənaˈsaran",
+  perbaiki: "p\u0259rba\u02c8iki",
   rahasia: "raˈhasia",
   sampai: "ˈsampai",
   semua: "səˈmua",
   ternyata: "tərˈɲata",
-  viral: "ˈviral"
+  viral: "ˈviral",
+  yang: "\u02c8ja\u014b"
 }));
 
 function cleanText(value) {

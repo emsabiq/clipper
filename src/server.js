@@ -244,6 +244,7 @@ const envGroups = [
       field("THUMBNAIL_TTS_MAX_SECONDS", "Thumbnail TTS max"),
       field("THUMBNAIL_TRANSITION_ENABLED", "Thumbnail transition"),
       field("THUMBNAIL_TRANSITION_ASSET", "Transition asset"),
+      field("THUMBNAIL_TRANSITION_SPEED", "Transition speed"),
       field("THUMBNAIL_TRANSITION_KEY_COLOR", "Transition key color"),
       field("THUMBNAIL_TRANSITION_KEY_SIMILARITY", "Transition key similarity"),
       field("THUMBNAIL_TRANSITION_KEY_BLEND", "Transition key blend")

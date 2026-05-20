@@ -560,6 +560,8 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
         transitionApplied: thumbnailIntro.transitionApplied === true,
         transitionPath: thumbnailIntro.transitionPath || "",
         transitionDurationSeconds: thumbnailIntro.transitionDurationSeconds || 0,
+        transitionSourceDurationSeconds: thumbnailIntro.transitionSourceDurationSeconds || 0,
+        transitionSpeed: thumbnailIntro.transitionSpeed || "",
         transitionKeyColor: thumbnailIntro.transitionKeyColor || "",
         transitionKeySimilarity: thumbnailIntro.transitionKeySimilarity ?? "",
         transitionKeyBlend: thumbnailIntro.transitionKeyBlend ?? ""

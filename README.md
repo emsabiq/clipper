@@ -848,6 +848,7 @@ THUMBNAIL_TTS_PAD_SECONDS=0
 THUMBNAIL_TTS_MAX_SECONDS=12
 THUMBNAIL_TRANSITION_ENABLED=true
 THUMBNAIL_TRANSITION_ASSET=assets/branding/transisi-thumbnail-to-content.mp4
+THUMBNAIL_TRANSITION_SPEED=1.28
 THUMBNAIL_TRANSITION_KEY_COLOR=0x000000
 THUMBNAIL_TRANSITION_KEY_SIMILARITY=0.18
 THUMBNAIL_TRANSITION_KEY_BLEND=0.04
@@ -1055,6 +1056,10 @@ Menambahkan overlay transisi setelah TTS thumbnail selesai dan tepat saat video 
 #### `THUMBNAIL_TRANSITION_ASSET`
 
 Path MP4 transisi yang dipakai setelah intro thumbnail. Default: `assets/branding/transisi-thumbnail-to-content.mp4`.
+
+#### `THUMBNAIL_TRANSITION_SPEED`
+
+Kecepatan playback transisi setelah TTS selesai. Default: `1.28`, sehingga file transisi 1.88 detik tampil sekitar 1.47 detik.
 
 #### `THUMBNAIL_TRANSITION_KEY_COLOR`
 
