@@ -305,17 +305,17 @@ jobs:
       THUMBNAIL_INTRO_ENABLED: ${{ secrets.THUMBNAIL_INTRO_ENABLED || 'true' }}
       THUMBNAIL_INTRO_SECONDS: ${{ secrets.THUMBNAIL_INTRO_SECONDS || '0.9' }}
       THUMBNAIL_TTS_ENABLED: ${{ secrets.THUMBNAIL_TTS_ENABLED || 'true' }}
-      THUMBNAIL_TTS_PAD_SECONDS: ${{ secrets.THUMBNAIL_TTS_PAD_SECONDS || '0.15' }}
+      THUMBNAIL_TTS_PAD_SECONDS: ${{ secrets.THUMBNAIL_TTS_PAD_SECONDS || '0' }}
       THUMBNAIL_TTS_MAX_SECONDS: ${{ secrets.THUMBNAIL_TTS_MAX_SECONDS || '12' }}
       THUMBNAIL_TTS_TEXT_PREFIX: ${{ secrets.THUMBNAIL_TTS_TEXT_PREFIX || '' }}
-      THUMBNAIL_TTS_PROVIDER: ${{ secrets.THUMBNAIL_TTS_PROVIDER || 'openai' }}
+      THUMBNAIL_TTS_PROVIDER: ${{ secrets.THUMBNAIL_TTS_PROVIDER || 'deepgram' }}
       OPENAI_TTS_MODEL: ${{ secrets.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts' }}
       OPENAI_TTS_VOICE: ${{ secrets.OPENAI_TTS_VOICE || 'nova' }}
       OPENAI_TTS_SPEED: ${{ secrets.OPENAI_TTS_SPEED || '1.12' }}
       OPENAI_TTS_INSTRUCTIONS: ${{ secrets.OPENAI_TTS_INSTRUCTIONS || 'Bicara sepenuhnya dalam Bahasa Indonesia. Gunakan pelafalan Indonesia natural seperti wanita dewasa Indonesia, jelas, hangat, percaya diri, dan sedikit cepat. Jangan memakai aksen Inggris atau intonasi bule. Cocok untuk pembuka video pendek.' }}
       DEEPGRAM_TTS_API_KEYS: ${{ secrets.DEEPGRAM_TTS_API_KEYS || secrets.DEEPGRAM_API_KEYS }}
-      DEEPGRAM_TTS_MODEL: ${{ secrets.DEEPGRAM_TTS_MODEL || 'aura-2-saturn-en' }}
-      DEEPGRAM_TTS_SPEED: ${{ secrets.DEEPGRAM_TTS_SPEED || '1.45' }}
+      DEEPGRAM_TTS_MODEL: ${{ secrets.DEEPGRAM_TTS_MODEL || 'aura-2-amalthea-en' }}
+      DEEPGRAM_TTS_SPEED: ${{ secrets.DEEPGRAM_TTS_SPEED || '1.5' }}
       DEEPGRAM_TTS_ACCENT_PROFILE: ${{ secrets.DEEPGRAM_TTS_ACCENT_PROFILE || 'id' }}
       DEEPGRAM_TTS_PRONUNCIATION_ENABLED: ${{ secrets.DEEPGRAM_TTS_PRONUNCIATION_ENABLED || 'true' }}
       THUMBNAIL_TTS_VOLUME: ${{ secrets.THUMBNAIL_TTS_VOLUME || '1.45' }}

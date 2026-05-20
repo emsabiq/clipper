@@ -202,12 +202,12 @@ function buildConfig() {
       timeoutSeconds: numberEnv("DEEPGRAM_TIMEOUT_SECONDS", 900),
       tts: {
         enabled: boolEnv("THUMBNAIL_TTS_ENABLED", true),
-        provider: cleanText(process.env.THUMBNAIL_TTS_PROVIDER || "openai"),
+        provider: cleanText(process.env.THUMBNAIL_TTS_PROVIDER || "deepgram"),
         openaiModel: cleanText(process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts"),
         openaiVoice: cleanText(process.env.OPENAI_TTS_VOICE || "nova"),
         openaiSpeed: numberEnv("OPENAI_TTS_SPEED", numberEnv("THUMBNAIL_TTS_SPEED", 1.12)),
-        model: cleanText(process.env.DEEPGRAM_TTS_MODEL || "aura-2-saturn-en"),
-        speed: numberEnv("DEEPGRAM_TTS_SPEED", 1.45),
+        model: cleanText(process.env.DEEPGRAM_TTS_MODEL || "aura-2-amalthea-en"),
+        speed: numberEnv("DEEPGRAM_TTS_SPEED", 1.5),
         accentProfile: cleanText(process.env.DEEPGRAM_TTS_ACCENT_PROFILE || "id"),
         pronunciationEnabled: boolEnv("DEEPGRAM_TTS_PRONUNCIATION_ENABLED", true),
         volume: numberEnv("THUMBNAIL_TTS_VOLUME", numberEnv("DEEPGRAM_TTS_VOLUME", 1.45))

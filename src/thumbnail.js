@@ -25,7 +25,7 @@ const BORDER_OPACITY = clampOpacity(process.env.THUMBNAIL_BORDER_OPACITY, 0.85);
 const TEXT_OUTLINE_OPACITY = clampOpacity(process.env.THUMBNAIL_TEXT_OUTLINE_OPACITY, 0.85);
 const JPEG_Q = process.env.THUMBNAIL_JPEG_Q || "1";
 const INTRO_SECONDS = clampSeconds(process.env.THUMBNAIL_INTRO_SECONDS, 0.9);
-const TTS_PAD_SECONDS = clampDuration(process.env.THUMBNAIL_TTS_PAD_SECONDS, 0.15, 0, 2);
+const TTS_PAD_SECONDS = clampDuration(process.env.THUMBNAIL_TTS_PAD_SECONDS, 0, 0, 2);
 const TTS_MAX_SECONDS = clampDuration(process.env.THUMBNAIL_TTS_MAX_SECONDS, 12, 1, 30);
 const rendererPath = path.join(config.srcDir, "branding-renderer.py");
 

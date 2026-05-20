@@ -2,9 +2,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { config } from "./config.js";
 
-const DEFAULT_TTS_PROVIDER = "openai";
-const DEFAULT_DEEPGRAM_TTS_MODEL = "aura-2-saturn-en";
-const DEFAULT_DEEPGRAM_TTS_SPEED = 1.45;
+const DEFAULT_TTS_PROVIDER = "deepgram";
+const DEFAULT_DEEPGRAM_TTS_MODEL = "aura-2-amalthea-en";
+const DEFAULT_DEEPGRAM_TTS_SPEED = 1.5;
 const DEFAULT_OPENAI_TTS_MODEL = "gpt-4o-mini-tts";
 const DEFAULT_OPENAI_TTS_VOICE = "nova";
 const DEFAULT_OPENAI_TTS_SPEED = 1.12;
@@ -194,7 +194,7 @@ function applyIndonesianAccentHints(value) {
     .replace(/\bloe\b/gi, "kamu");
 
   text = text.replace(/\b([0-9]|10)\b/g, (match) => INDONESIAN_NUMBER_WORDS[Number(match)] || match);
-  return addSpeechPacing(cleanText(text));
+  return cleanText(text);
 }
 
 function truncateSpeechText(value, maxChars) {
@@ -202,13 +202,6 @@ function truncateSpeechText(value, maxChars) {
   if (text.length <= maxChars) return text;
   const sliced = text.slice(0, maxChars);
   return sliced.replace(/\s+\S*$/, "").trim() || sliced.trim();
-}
-
-function addSpeechPacing(value) {
-  const words = String(value || "").split(/\s+/).filter(Boolean);
-  if (words.length < 7 || /[,;:]/.test(value)) return value;
-  const splitAt = Math.min(6, Math.max(3, Math.ceil(words.length / 2)));
-  return `${words.slice(0, splitAt).join(" ")}, ${words.slice(splitAt).join(" ")}`;
 }
 
 function applyIndonesianPronunciationControls(value) {

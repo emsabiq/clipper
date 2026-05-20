@@ -833,17 +833,17 @@ THUMBNAIL_PILL_TEXT=Podcast | Highlight | Viral
 THUMBNAIL_INTRO_ENABLED=true
 THUMBNAIL_INTRO_SECONDS=0.9
 THUMBNAIL_TTS_ENABLED=true
-THUMBNAIL_TTS_PROVIDER=openai
+THUMBNAIL_TTS_PROVIDER=deepgram
 OPENAI_TTS_MODEL=gpt-4o-mini-tts
 OPENAI_TTS_VOICE=nova
 OPENAI_TTS_SPEED=1.12
 OPENAI_TTS_INSTRUCTIONS=Bicara sepenuhnya dalam Bahasa Indonesia. Gunakan pelafalan Indonesia natural seperti wanita dewasa Indonesia, jelas, hangat, percaya diri, dan sedikit cepat. Jangan memakai aksen Inggris atau intonasi bule. Cocok untuk pembuka video pendek.
-DEEPGRAM_TTS_MODEL=aura-2-saturn-en
-DEEPGRAM_TTS_SPEED=1.45
+DEEPGRAM_TTS_MODEL=aura-2-amalthea-en
+DEEPGRAM_TTS_SPEED=1.5
 DEEPGRAM_TTS_ACCENT_PROFILE=id
 DEEPGRAM_TTS_PRONUNCIATION_ENABLED=true
 THUMBNAIL_TTS_VOLUME=1.45
-THUMBNAIL_TTS_PAD_SECONDS=0.15
+THUMBNAIL_TTS_PAD_SECONDS=0
 THUMBNAIL_TTS_MAX_SECONDS=12
 MAX_SCHEDULED_POSTS_PER_DAY=0
 YOUTUBE_DAILY_UPLOAD_LIMIT=6
@@ -1000,7 +1000,7 @@ Segmen pembuka hanya berisi thumbnail freeze + audio TTS; audio video utama dan 
 
 #### `THUMBNAIL_TTS_PROVIDER`
 
-Provider TTS pembuka thumbnail. Default: `openai` supaya suara bisa diarahkan bicara Bahasa Indonesia natural. Isi `deepgram` hanya jika ingin fallback ke Deepgram.
+Provider TTS pembuka thumbnail. Default: `deepgram` supaya memakai voice Deepgram yang cepat dan ringan.
 
 #### `OPENAI_TTS_MODEL`
 
@@ -1020,11 +1020,11 @@ Instruksi gaya bicara OpenAI TTS. Default memaksa Bahasa Indonesia natural, wani
 
 #### `DEEPGRAM_TTS_MODEL`
 
-Model suara Deepgram jika `THUMBNAIL_TTS_PROVIDER=deepgram`. Default: `aura-2-saturn-en`.
+Model suara Deepgram jika `THUMBNAIL_TTS_PROVIDER=deepgram`. Default: `aura-2-amalthea-en` untuk suara wanita.
 
 #### `DEEPGRAM_TTS_SPEED`
 
-Kecepatan suara pembuka thumbnail. Default: `1.45`.
+Kecepatan suara pembuka thumbnail. Default: `1.5`.
 
 #### `DEEPGRAM_TTS_ACCENT_PROFILE`
 

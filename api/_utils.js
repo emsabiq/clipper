@@ -176,14 +176,14 @@ export function configSummary() {
     deepgramEnabled: boolEnv("DEEPGRAM_ENABLED", true),
     deepgramModel: clean(process.env.DEEPGRAM_MODEL || "nova-3"),
     thumbnailTtsEnabled: boolEnv("THUMBNAIL_TTS_ENABLED", true),
-    thumbnailTtsProvider: clean(process.env.THUMBNAIL_TTS_PROVIDER || "openai"),
-    thumbnailTtsModel: clean(process.env.THUMBNAIL_TTS_PROVIDER || "openai") === "openai"
+    thumbnailTtsProvider: clean(process.env.THUMBNAIL_TTS_PROVIDER || "deepgram"),
+    thumbnailTtsModel: clean(process.env.THUMBNAIL_TTS_PROVIDER || "deepgram") === "openai"
       ? clean(process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts")
-      : clean(process.env.DEEPGRAM_TTS_MODEL || "aura-2-saturn-en"),
+      : clean(process.env.DEEPGRAM_TTS_MODEL || "aura-2-amalthea-en"),
     thumbnailTtsVoice: clean(process.env.OPENAI_TTS_VOICE || "nova"),
-    thumbnailTtsSpeed: Number(clean(process.env.THUMBNAIL_TTS_PROVIDER || "openai") === "openai"
+    thumbnailTtsSpeed: Number(clean(process.env.THUMBNAIL_TTS_PROVIDER || "deepgram") === "openai"
       ? process.env.OPENAI_TTS_SPEED || process.env.THUMBNAIL_TTS_SPEED || 1.12
-      : process.env.DEEPGRAM_TTS_SPEED || 1.45),
+      : process.env.DEEPGRAM_TTS_SPEED || 1.5),
     thumbnailTtsAccentProfile: clean(process.env.DEEPGRAM_TTS_ACCENT_PROFILE || "id"),
     thumbnailTtsPronunciationEnabled: boolEnv("DEEPGRAM_TTS_PRONUNCIATION_ENABLED", true),
     thumbnailTtsVolume: Number(process.env.THUMBNAIL_TTS_VOLUME || process.env.DEEPGRAM_TTS_VOLUME || 1.45),

@@ -508,8 +508,8 @@ function platformItem(label, envEnabled, stats, key, forcedValue = "", enabledVa
 function renderTtsConfig(cfg) {
   if (!els.ttsBadge) return;
   const enabled = cfg.thumbnailTtsEnabled !== false;
-  const provider = cfg.thumbnailTtsProvider || "openai";
-  const speed = cfg.thumbnailTtsSpeed || (provider === "openai" ? "1.12" : "1.45");
+  const provider = cfg.thumbnailTtsProvider || "deepgram";
+  const speed = cfg.thumbnailTtsSpeed || (provider === "openai" ? "1.12" : "1.5");
   const volume = cfg.thumbnailTtsVolume || "1.45";
   const accent = cfg.thumbnailTtsAccentProfile || "id";
   const ipa = provider === "deepgram" && cfg.thumbnailTtsPronunciationEnabled !== false ? " IPA" : "";
@@ -873,9 +873,10 @@ els.ttsTestBtn?.addEventListener("click", async () => {
     ttsAudioUrl = URL.createObjectURL(blob);
     els.ttsAudio.src = ttsAudioUrl;
     els.ttsAudio.hidden = false;
-    const provider = result.provider || "openai";
+    const provider = result.provider || "deepgram";
     const voice = result.voice ? ` / ${result.voice}` : "";
-    els.ttsStatus.textContent = `${provider} / ${result.model || "TTS"}${voice} / ${result.speed || "1.12"}x / vol ${result.volume || "1.45"}x / ${result.charCount || text.length} karakter`;
+    const speed = result.speed || (provider === "deepgram" ? "1.5" : "1.12");
+    els.ttsStatus.textContent = `${provider} / ${result.model || "TTS"}${voice} / ${speed}x / vol ${result.volume || "1.45"}x / ${result.charCount || text.length} karakter`;
     await playAudioWithTtsGain(els.ttsAudio, result.volume).catch(() => {});
   } catch (error) {
     handleApiError(error, els.ttsStatus);
@@ -950,9 +951,10 @@ async function playIntroVideoPreview(button) {
     introPreviewAudio = new Audio(introPreviewAudioUrl);
 
     if (status) {
-      const provider = result.provider || "openai";
+      const provider = result.provider || "deepgram";
       const voice = result.voice ? ` / ${result.voice}` : "";
-      status.textContent = `${provider} / ${result.model || "TTS"}${voice} / ${result.speed || "1.12"}x / vol ${result.volume || "1.45"}x`;
+      const speed = result.speed || (provider === "deepgram" ? "1.5" : "1.12");
+      status.textContent = `${provider} / ${result.model || "TTS"}${voice} / ${speed}x / vol ${result.volume || "1.45"}x`;
     }
 
     await new Promise((resolve, reject) => {
