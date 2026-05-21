@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#0b0d10">
-    <title>Clipper Command Center</title>
+    <title>dashboard.emsa.pro</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b0d10'/%3E%3Cpath d='M15 18h34v8H15zM15 30h24v8H15zM15 42h34v4H15z' fill='%232dd4bf'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="/styles.css">
   </head>
@@ -14,22 +14,23 @@
     <section id="authOverlay" class="authOverlay active" aria-hidden="false">
       <form id="authForm" class="loginPanel">
         <div class="loginBrand">
-          <span class="brandMark">CE</span>
+          <span class="brandMark">EP</span>
           <div>
-            <p class="kicker">Operator Access</p>
-            <h1>Clipper Command</h1>
+            <p class="kicker">Secure Operator Console</p>
+            <h1>dashboard.emsa.pro</h1>
+            <span>Premium automation control for short-form publishing.</span>
           </div>
         </div>
         <div class="loginSignal">
-          <span>Queue Guard</span>
-          <span>Publish Monitor</span>
-          <span>Trend Ops</span>
+          <span><b>Queue</b> guard</span>
+          <span><b>SFTP</b> watch</span>
+          <span><b>Publish</b> control</span>
         </div>
-        <label class="field">
+        <label class="field loginField">
           <span>Dashboard PIN</span>
-          <input id="authPin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" required>
+          <input id="authPin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" required placeholder="Masukkan PIN operator">
         </label>
-        <button class="btn primary" type="submit">Masuk</button>
+        <button class="btn primary" type="submit">Masuk Dashboard</button>
         <p id="authError" class="formError" role="alert"></p>
       </form>
     </section>
@@ -37,10 +38,10 @@
     <main class="appShell">
       <header class="appHeader panel">
         <div class="brandBlock">
-          <span class="brandMark">CE</span>
+          <span class="brandMark">EP</span>
           <div>
-            <p class="kicker">Clipper Emsa Pro</p>
-            <h1>Automation Command Center</h1>
+            <p class="kicker">dashboard.emsa.pro</p>
+            <h1>Publishing Control Center</h1>
           </div>
         </div>
         <div class="headerStatus">
@@ -53,6 +54,61 @@
           <button id="logoutBtn" class="btn ghost small" type="button">Logout</button>
         </nav>
       </header>
+
+      <section class="topOpsGrid">
+        <section class="panel consolePanel heroConsole">
+          <div class="panelHead">
+            <div>
+              <p class="kicker">Console</p>
+              <h2>Live Run Output</h2>
+            </div>
+            <div class="headActions">
+              <span id="consoleMeta" class="badge">0 log</span>
+              <button id="copyConsoleBtn" class="btn ghost small" type="button">Copy</button>
+            </div>
+          </div>
+          <pre id="consoleOutput">Belum ada output.</pre>
+        </section>
+
+        <aside class="panel reliabilityPanel">
+          <div class="panelHead">
+            <div>
+              <p class="kicker">Reliability Watch</p>
+              <h2>Mode & Storage</h2>
+            </div>
+            <span id="safeModeBadge" class="badge">all</span>
+          </div>
+          <div class="reliabilityGrid">
+            <article>
+              <span>Storage</span>
+              <strong id="storageMode">LOCAL</strong>
+              <small id="storageHint">Menunggu config</small>
+            </article>
+            <article>
+              <span>Diagnostics</span>
+              <strong id="diagnosticCount">0</strong>
+              <small id="lastDiagnostic">Tidak ada issue baru</small>
+            </article>
+            <article>
+              <span>Ready Jobs</span>
+              <strong id="readyJobCount">0</strong>
+              <small id="readyJobHint">Siap publish ulang</small>
+            </article>
+            <article>
+              <span>Queue Heat</span>
+              <strong id="queueHeat">0%</strong>
+              <small id="queueHeatHint">Kapasitas harian</small>
+            </article>
+          </div>
+          <div class="opsNote">
+            <strong>SFTP ETIMEDOUT note</strong>
+            <span>Jika timeout muncul, cek host SFTP, jaringan runner, dan timeout client. Dashboard ini tetap menampilkan URL publik dan diagnostic tanpa membuka token.</span>
+          </div>
+          <div id="diagnosticFeed" class="diagnosticFeed">
+            <span>Tidak ada diagnostic terbaru.</span>
+          </div>
+        </aside>
+      </section>
 
       <section id="metrics" class="metricGrid" aria-label="Operational metrics"></section>
 
@@ -333,17 +389,6 @@
       </section>
 
       <section class="monitorGrid">
-        <section class="panel consolePanel">
-          <div class="panelHead">
-            <div>
-              <p class="kicker">Console</p>
-              <h2>Run Output</h2>
-            </div>
-            <span id="consoleMeta" class="badge">0 log</span>
-          </div>
-          <pre id="consoleOutput">Belum ada output.</pre>
-        </section>
-
         <section class="panel tablePanel">
           <div class="panelHead">
             <div>
@@ -351,6 +396,13 @@
               <h2>Video</h2>
             </div>
             <div class="headActions">
+              <select id="videoFilter" class="miniSelect" aria-label="Filter video">
+                <option value="active">Aktif</option>
+                <option value="queued">Queued</option>
+                <option value="failed">Failed</option>
+                <option value="all">Semua</option>
+              </select>
+              <input id="videoSearch" class="miniInput" type="search" placeholder="Cari video">
               <button id="resetQueueBtn" class="btn ghost small" type="button">Reset Queue Lama</button>
               <span id="videoCount" class="badge">0 item</span>
             </div>
@@ -378,7 +430,17 @@
               <p class="kicker">Jobs</p>
               <h2>Pipeline Log</h2>
             </div>
-            <span id="jobCount" class="badge">0 item</span>
+            <div class="headActions">
+              <select id="jobFilter" class="miniSelect" aria-label="Filter job">
+                <option value="all">Semua</option>
+                <option value="published">Published</option>
+                <option value="ready">Ready</option>
+                <option value="warning">Warning</option>
+                <option value="failed">Failed</option>
+              </select>
+              <input id="jobSearch" class="miniInput" type="search" placeholder="Cari job">
+              <span id="jobCount" class="badge">0 item</span>
+            </div>
           </div>
           <div class="tableWrap">
             <table>

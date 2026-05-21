@@ -95,12 +95,27 @@ const els = {
   videoForm: document.querySelector("#videoForm"),
   consoleOutput: document.querySelector("#consoleOutput"),
   consoleMeta: document.querySelector("#consoleMeta"),
+  copyConsoleBtn: document.querySelector("#copyConsoleBtn"),
+  safeModeBadge: document.querySelector("#safeModeBadge"),
+  storageMode: document.querySelector("#storageMode"),
+  storageHint: document.querySelector("#storageHint"),
+  diagnosticCount: document.querySelector("#diagnosticCount"),
+  lastDiagnostic: document.querySelector("#lastDiagnostic"),
+  diagnosticFeed: document.querySelector("#diagnosticFeed"),
+  readyJobCount: document.querySelector("#readyJobCount"),
+  readyJobHint: document.querySelector("#readyJobHint"),
+  queueHeat: document.querySelector("#queueHeat"),
+  queueHeatHint: document.querySelector("#queueHeatHint"),
   videoRows: document.querySelector("#videoRows"),
   videoCount: document.querySelector("#videoCount"),
+  videoSearch: document.querySelector("#videoSearch"),
+  videoFilter: document.querySelector("#videoFilter"),
   videosMore: document.querySelector("#videosMore"),
   resetQueueBtn: document.querySelector("#resetQueueBtn"),
   jobRows: document.querySelector("#jobRows"),
   jobCount: document.querySelector("#jobCount"),
+  jobSearch: document.querySelector("#jobSearch"),
+  jobFilter: document.querySelector("#jobFilter"),
   jobsMore: document.querySelector("#jobsMore")
 };
 
@@ -143,6 +158,7 @@ async function refresh() {
   renderConfigLine(state.config || {});
   applyEffectDefaults(state.config || {});
   renderMetrics(stats);
+  renderReliability(state, stats);
   renderRun(state, stats);
   renderInsights(stats);
   renderCharts(stats);
@@ -218,6 +234,7 @@ function renderConfigLine(cfg) {
   const parts = [
     cfg.dryRun ? "dry-run" : "live",
     cfg.autoPublish ? "publish on" : "publish off",
+    `safe ${cfg.safePublishMode || "all"}`,
     `storage ${(cfg.uploadDriver || "local").toUpperCase()}`,
     `AI ${(cfg.aiProvider || "openai").toUpperCase()}`,
     `transkrip ${(cfg.transcribeProvider || "deepgram").toUpperCase()}`,
@@ -240,6 +257,50 @@ function renderMetrics(stats) {
     metricCard("Success rate", `${stats.successRate}%`, stats.successRate >= 80 ? "ok" : "warn", `${stats.failedJobs} failed`),
     metricCard("Queue lama", stats.staleQueue, staleTone, `${stats.expiredQueue} expired`)
   ].join("");
+}
+
+function renderReliability(state, stats) {
+  const cfg = state.config || {};
+  const diagnostics = state.diagnostics || [];
+  const latestDiagnostic = diagnostics[0] || null;
+  const safeMode = cfg.safePublishMode || "all";
+  const storage = String(cfg.uploadDriver || "local").toUpperCase();
+  const readyHint = stats.readyJobs ? `${stats.readyJobs} job bisa dipantau` : "Tidak ada backlog ready";
+  const storageHint = cfg.remoteUploadRequired
+    ? "Remote wajib, timeout perlu diperhatikan"
+    : storage === "LOCAL" ? "Mode file lokal" : "Remote optional fallback";
+
+  if (els.safeModeBadge) {
+    els.safeModeBadge.textContent = safeMode;
+    els.safeModeBadge.classList.toggle("warn", safeMode !== "all");
+  }
+  if (els.storageMode) els.storageMode.textContent = storage;
+  if (els.storageHint) els.storageHint.textContent = storageHint;
+  if (els.diagnosticCount) els.diagnosticCount.textContent = diagnostics.length;
+  if (els.lastDiagnostic) {
+    els.lastDiagnostic.textContent = latestDiagnostic
+      ? `${latestDiagnostic.stage || "issue"} / ${short(latestDiagnostic.error_message || latestDiagnostic.job_id || latestDiagnostic.name, 44)}`
+      : "Tidak ada issue baru";
+  }
+  if (els.diagnosticFeed) {
+    els.diagnosticFeed.innerHTML = diagnostics.length
+      ? diagnostics.slice(0, 3).map((item) => `
+          <article>
+            <strong>${escapeHtml(item.stage || item.status || "diagnostic")}</strong>
+            <span>${escapeHtml(short(item.error_message || item.job_id || item.name || "Issue tercatat", 72))}</span>
+            <small>${escapeHtml(formatDateTime(item.timestamp || item.updated_at))}</small>
+          </article>
+        `).join("")
+      : "<span>Tidak ada diagnostic terbaru.</span>";
+  }
+  if (els.readyJobCount) els.readyJobCount.textContent = stats.readyJobs;
+  if (els.readyJobHint) els.readyJobHint.textContent = readyHint;
+  if (els.queueHeat) els.queueHeat.textContent = `${stats.queueLoadPct}%`;
+  if (els.queueHeatHint) {
+    els.queueHeatHint.textContent = stats.activeQueue > stats.dailyLimit
+      ? "Backlog melewati slot"
+      : `${stats.activeQueue}/${stats.dailyLimit} slot terpakai`;
+  }
 }
 
 function metricCard(label, value, tone, detail) {
@@ -602,9 +663,11 @@ function renderConsole(run) {
 
 function renderVideos(videos) {
   cachedVideos = videos;
-  const visible = videos.filter(isQueuePanelVideo);
-  const hidden = videos.length - visible.length;
-  els.videoCount.textContent = hidden ? `${visible.length} aktif / ${videos.length}` : `${visible.length} item`;
+  const baseVisible = videos.filter(isQueuePanelVideo);
+  const filter = els.videoFilter?.value || "active";
+  const visible = filterVideos(filter === "all" ? videos : baseVisible);
+  const hidden = videos.length - baseVisible.length;
+  els.videoCount.textContent = hidden ? `${visible.length}/${baseVisible.length} aktif` : `${visible.length} item`;
   els.videoRows.innerHTML = [...visible]
     .reverse()
     .slice(0, videoLimit)
@@ -623,8 +686,9 @@ function renderVideos(videos) {
 
 function renderJobs(jobs) {
   cachedJobs = jobs;
-  els.jobCount.textContent = `${jobs.length} item`;
-  els.jobRows.innerHTML = [...jobs]
+  const visible = filterJobs(jobs);
+  els.jobCount.textContent = `${visible.length}/${jobs.length} item`;
+  els.jobRows.innerHTML = [...visible]
     .reverse()
     .slice(0, jobLimit)
     .map((job) => `
@@ -710,6 +774,51 @@ function readEffectOptions(form) {
     use_music: Boolean(form.elements.use_music?.checked),
     use_subtitle_highlight: Boolean(form.elements.use_subtitle_highlight?.checked)
   };
+}
+
+function filterVideos(videos) {
+  const query = String(els.videoSearch?.value || "").trim().toLowerCase();
+  const filter = els.videoFilter?.value || "active";
+  return videos.filter((video) => {
+    const status = String(video.status || "queued").toLowerCase();
+    if (filter !== "active" && filter !== "all" && status !== filter) return false;
+    if (!query) return true;
+    return [
+      video.id,
+      video.source_title,
+      video.theme,
+      video.url,
+      video.source_url,
+      video.discovery_source,
+      video.discovery_query
+    ].some((value) => String(value || "").toLowerCase().includes(query));
+  });
+}
+
+function filterJobs(jobs) {
+  const query = String(els.jobSearch?.value || "").trim().toLowerCase();
+  const filter = els.jobFilter?.value || "all";
+  return jobs.filter((job) => {
+    if (filter === "published" && !isPublishedJob(job)) return false;
+    if (filter === "ready" && !["ready_to_publish", "queued"].includes(job.status) && !["ready_to_publish", "queued"].includes(job.publish_status)) return false;
+    if (filter === "warning" && job.publish_status !== "published_with_warnings") return false;
+    if (filter === "failed" && !isFailed(job.status) && !isFailed(job.publish_status)) return false;
+    if (!query) return true;
+    return [
+      job.job_id,
+      job.video_id,
+      job.source_title,
+      job.source_url,
+      job.status,
+      job.publish_status,
+      job.error_message,
+      job.instagram_error,
+      job.facebook_error,
+      job.youtube_error,
+      job.tiktok_error,
+      job.threads_error
+    ].some((value) => String(value || "").toLowerCase().includes(query));
+  });
 }
 
 function resetEffectOptions(form) {
@@ -818,6 +927,37 @@ els.videosMore?.addEventListener("click", () => {
 els.jobsMore?.addEventListener("click", () => {
   jobLimit = jobLimit > ROW_LIMIT_DEFAULT ? ROW_LIMIT_DEFAULT : ROW_LIMIT_EXPANDED;
   renderJobs(cachedJobs);
+});
+
+els.videoSearch?.addEventListener("input", () => {
+  videoLimit = ROW_LIMIT_DEFAULT;
+  renderVideos(cachedVideos);
+});
+
+els.videoFilter?.addEventListener("change", () => {
+  videoLimit = ROW_LIMIT_DEFAULT;
+  renderVideos(cachedVideos);
+});
+
+els.jobSearch?.addEventListener("input", () => {
+  jobLimit = ROW_LIMIT_DEFAULT;
+  renderJobs(cachedJobs);
+});
+
+els.jobFilter?.addEventListener("change", () => {
+  jobLimit = ROW_LIMIT_DEFAULT;
+  renderJobs(cachedJobs);
+});
+
+els.copyConsoleBtn?.addEventListener("click", async () => {
+  const text = els.consoleOutput?.innerText || "";
+  if (!text.trim()) return;
+  await navigator.clipboard?.writeText(text).catch(() => {});
+  const original = els.copyConsoleBtn.textContent;
+  els.copyConsoleBtn.textContent = "Copied";
+  window.setTimeout(() => {
+    els.copyConsoleBtn.textContent = original || "Copy";
+  }, 1200);
 });
 
 els.resetQueueBtn?.addEventListener("click", async () => {

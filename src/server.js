@@ -320,7 +320,9 @@ app.get("/api/state", async (_req, res) => {
     config: {
       dryRun: config.dryRun,
       autoPublish: config.autoPublish,
+      safePublishMode: config.safePublishMode || "all",
       uploadDriver: config.uploadDriver,
+      remoteUploadRequired: config.remoteUploadRequired,
       defaultTheme: config.defaultTheme,
       publicBaseUrl: config.publicBaseUrl,
       postCron: config.postCron,
@@ -363,7 +365,8 @@ app.get("/api/state", async (_req, res) => {
     videos: await readJson("videos", []),
     prompts: await readJson("prompts", []),
     jobs: await readJson("jobs", []),
-    history: await readJson("history", [])
+    history: await readJson("history", []),
+    diagnostics: await listDiagnostics()
   });
 });
 
@@ -947,6 +950,44 @@ async function readDashboardSettings() {
       })
     }))
   };
+}
+
+async function listDiagnostics() {
+  try {
+    const entries = await fs.readdir(config.logDir, { withFileTypes: true });
+    const diagnostics = await Promise.all(
+      entries
+        .filter((entry) => entry.isFile() && entry.name.endsWith(".diagnostic.json"))
+        .map(async (entry) => {
+          const filePath = path.join(config.logDir, entry.name);
+          const stat = await fs.stat(filePath);
+          let summary = {};
+          try {
+            const parsed = JSON.parse(await fs.readFile(filePath, "utf8"));
+            summary = {
+              job_id: parsed.job_id || "",
+              stage: parsed.stage || "",
+              status: parsed.status || "",
+              error_message: String(parsed.error_message || "").slice(0, 220),
+              timestamp: parsed.timestamp || ""
+            };
+          } catch {
+            summary = {};
+          }
+          return {
+            name: entry.name,
+            size: stat.size,
+            updated_at: stat.mtime.toISOString(),
+            ...summary
+          };
+        })
+    );
+    return diagnostics
+      .sort((a, b) => String(b.timestamp || b.updated_at).localeCompare(String(a.timestamp || a.updated_at)))
+      .slice(0, 20);
+  } catch {
+    return [];
+  }
 }
 
 async function saveDashboardSettings(values) {

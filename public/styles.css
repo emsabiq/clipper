@@ -1107,6 +1107,274 @@ td a {
   color: var(--faint);
 }
 
+/* 2026 command dashboard refresh */
+:root {
+  --bg: #080b0f;
+  --bg-2: #11161c;
+  --panel: rgba(15, 20, 26, 0.9);
+  --panel-2: rgba(22, 29, 37, 0.94);
+  --line: rgba(225, 232, 240, 0.1);
+  --line-2: rgba(225, 232, 240, 0.18);
+  --text: #f6f8fb;
+  --muted: #a9b4c3;
+  --faint: #718095;
+  --teal: #1fd6c2;
+  --blue: #5b9cff;
+  --lime: #9de36a;
+  --amber: #f4bd50;
+  --rose: #ff6b7f;
+  --violet: #b59cff;
+  --shadow: 0 22px 60px rgba(0, 0, 0, 0.42);
+}
+
+body {
+  background:
+    linear-gradient(180deg, rgba(21, 28, 36, 0.96), rgba(8, 11, 15, 1) 34rem),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 76px);
+}
+
+.bgLayer {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.034) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.034) 1px, transparent 1px),
+    linear-gradient(135deg, rgba(31, 214, 194, 0.06), transparent 45%, rgba(244, 189, 80, 0.05));
+  background-size: 42px 42px, 42px 42px, 100% 100%;
+}
+
+.appHeader {
+  top: 12px;
+  border-color: rgba(31, 214, 194, 0.2);
+  background: rgba(10, 14, 19, 0.9);
+}
+
+.brandMark {
+  background: linear-gradient(135deg, #f4bd50, #1fd6c2 58%, #5b9cff);
+  color: #07100d;
+}
+
+.loginPanel {
+  width: min(100%, 520px);
+  padding: 30px;
+  background:
+    linear-gradient(180deg, rgba(26, 33, 42, 0.98), rgba(10, 14, 19, 0.96)),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 42px);
+}
+
+.loginBrand {
+  align-items: flex-start;
+}
+
+.loginBrand h1 {
+  margin-top: 2px;
+  font-size: clamp(28px, 7vw, 42px);
+}
+
+.loginBrand span:not(.brandMark) {
+  display: block;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.loginSignal span {
+  min-height: 56px;
+  align-content: center;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.loginSignal b {
+  color: var(--text);
+}
+
+.loginField input {
+  height: 46px;
+  font-size: 15px;
+}
+
+.topOpsGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(340px, 0.7fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.heroConsole {
+  min-height: 360px;
+  border-color: rgba(31, 214, 194, 0.18);
+  background:
+    linear-gradient(180deg, rgba(11, 15, 20, 0.96), rgba(8, 10, 14, 0.96)),
+    repeating-linear-gradient(0deg, transparent 0 28px, rgba(255, 255, 255, 0.018) 28px 29px);
+}
+
+.heroConsole #consoleOutput {
+  min-height: 286px;
+  max-height: 470px;
+  border-color: rgba(31, 214, 194, 0.16);
+  background:
+    linear-gradient(180deg, rgba(1, 5, 7, 0.84), rgba(4, 8, 12, 0.9)),
+    repeating-linear-gradient(0deg, transparent 0 24px, rgba(31, 214, 194, 0.035) 24px 25px);
+  color: #d7f7ef;
+}
+
+.reliabilityPanel {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  background: linear-gradient(180deg, rgba(22, 29, 37, 0.94), rgba(13, 18, 24, 0.94));
+}
+
+.reliabilityGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.reliabilityGrid article {
+  min-height: 102px;
+  display: grid;
+  align-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.reliabilityGrid span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.reliabilityGrid strong {
+  color: var(--teal);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.reliabilityGrid small {
+  color: var(--faint);
+  font-size: 11px;
+}
+
+.opsNote {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid rgba(244, 189, 80, 0.28);
+  border-radius: 8px;
+  background: rgba(244, 189, 80, 0.08);
+}
+
+.opsNote strong {
+  color: var(--amber);
+  font-size: 12px;
+}
+
+.opsNote span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.diagnosticFeed {
+  display: grid;
+  gap: 8px;
+}
+
+.diagnosticFeed article,
+.diagnosticFeed > span {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid rgba(255, 107, 127, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 107, 127, 0.06);
+}
+
+.diagnosticFeed strong {
+  color: var(--rose);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.diagnosticFeed span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.diagnosticFeed small {
+  color: var(--faint);
+  font-size: 10px;
+}
+
+.metricGrid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.metric,
+.panel {
+  border-color: rgba(225, 232, 240, 0.11);
+}
+
+.metric {
+  background: linear-gradient(180deg, rgba(22, 29, 37, 0.94), rgba(12, 17, 23, 0.92));
+}
+
+.analyticsGrid {
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.75fr) minmax(300px, 0.8fr);
+}
+
+.monitorGrid {
+  grid-template-columns: 1fr;
+}
+
+.tablePanel {
+  background: rgba(15, 20, 26, 0.92);
+}
+
+.miniInput,
+.miniSelect {
+  width: 150px;
+  height: 30px;
+  padding: 0 9px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: rgba(8, 10, 13, 0.72);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  outline: 0;
+}
+
+.miniSelect {
+  width: 118px;
+}
+
+.miniInput:focus,
+.miniSelect:focus {
+  border-color: rgba(31, 214, 194, 0.62);
+  box-shadow: 0 0 0 3px rgba(31, 214, 194, 0.12);
+}
+
+.badge.warn {
+  border-color: rgba(244, 189, 80, 0.4);
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, #f4bd50, #1fd6c2);
+  color: #07100d;
+}
+
+.btn.ghost:hover {
+  border-color: rgba(31, 214, 194, 0.42);
+  background: rgba(31, 214, 194, 0.08);
+  text-decoration: none;
+}
+
 @keyframes pulse {
   0%,
   100% {
@@ -1130,6 +1398,7 @@ td a {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .topOpsGrid,
   .commandLayout,
   .analyticsGrid,
   .taskGrid,
@@ -1160,6 +1429,10 @@ td a {
 
   .toolbar {
     justify-content: flex-end;
+  }
+
+  .topOpsGrid {
+    grid-template-columns: 1fr;
   }
 
   .metricGrid {
@@ -1287,6 +1560,15 @@ td a {
 
   .platformGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reliabilityGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .miniInput,
+  .miniSelect {
+    width: 100%;
   }
 
   .platformItem {
