@@ -35,8 +35,11 @@ function load_jobs() {
 
 function collection_items($jobs) {
   $items = [];
+  $filterExistingFiles = has_video_storage();
+
   foreach ($jobs as $job) {
     if (!is_array($job) || empty($job['public_video_url'])) continue;
+    if ($filterExistingFiles && !local_video_path((string) $job['public_video_url'])) continue;
 
     $jobId = trim((string) ($job['job_id'] ?? $job['id'] ?? ''));
     if ($jobId === '') $jobId = 'video-' . count($items);
@@ -114,13 +117,40 @@ function local_video_path($videoUrl) {
   $path = rawurldecode((string) ($parts['path'] ?? ''));
   if (!starts_with($path, '/ig-generated/videos/')) return '';
 
-  $root = realpath(__DIR__ . '/ig-generated/videos');
-  $candidate = realpath(__DIR__ . $path);
-  if (!$root || !$candidate) return '';
+  $relative = ltrim(substr($path, strlen('/ig-generated/videos/')), '/');
+  if ($relative === '' || strpos($relative, '..') !== false) return '';
 
-  $rootWithSep = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
-  if ($candidate !== $root && !starts_with($candidate, $rootWithSep)) return '';
-  return $candidate;
+  foreach (video_roots() as $root) {
+    $candidate = realpath($root . DIRECTORY_SEPARATOR . $relative);
+    if (!$candidate) continue;
+
+    $rootWithSep = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+    if ($candidate === $root || starts_with($candidate, $rootWithSep)) return $candidate;
+  }
+
+  return '';
+}
+
+function has_video_storage() {
+  return count(video_roots()) > 0;
+}
+
+function video_roots() {
+  static $roots = null;
+  if ($roots !== null) return $roots;
+
+  $candidates = [
+    __DIR__ . '/ig-generated/videos',
+    dirname(__DIR__) . '/ig-generated/videos',
+  ];
+
+  $roots = [];
+  foreach ($candidates as $candidate) {
+    $root = realpath($candidate);
+    if ($root && is_dir($root) && !in_array($root, $roots, true)) $roots[] = $root;
+  }
+
+  return $roots;
 }
 
 function starts_with($value, $prefix) {
