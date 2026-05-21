@@ -1377,7 +1377,7 @@ FINAL_RENDER_CRF=27
 BACKGROUND_MUSIC_ENABLED=1
 BACKGROUND_MUSIC_FILE=auto
 BACKGROUND_MUSIC_MAP_FILE=assets/music/music-map.json
-BACKGROUND_MUSIC_VOLUME=0.05
+BACKGROUND_MUSIC_VOLUME=0.035
 BACKGROUND_MUSIC_ORIGINAL_VOLUME=1.0
 
 YTDLP_COOKIES_FILE=cookies.txt
@@ -1512,7 +1512,7 @@ Path map backsound otomatis. Default `assets/music/music-map.json`.
 
 #### `BACKGROUND_MUSIC_VOLUME`
 
-Volume backsound. Default `0.06`, masih pelan agar suara podcast tetap utama.
+Volume backsound. Default `0.035`, lebih pelan agar suara podcast tetap utama.
 
 #### `BACKGROUND_MUSIC_ORIGINAL_VOLUME`
 

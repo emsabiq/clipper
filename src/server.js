@@ -341,7 +341,7 @@ app.get("/api/state", async (_req, res) => {
       backgroundMusicEnabled: boolInput(process.env.BACKGROUND_MUSIC_ENABLED, true),
       backgroundMusicFile: process.env.BACKGROUND_MUSIC_FILE || "",
       backgroundMusicMapFile: process.env.BACKGROUND_MUSIC_MAP_FILE || "assets/music/music-map.json",
-      backgroundMusicVolume: process.env.BACKGROUND_MUSIC_VOLUME || "0.05",
+      backgroundMusicVolume: process.env.BACKGROUND_MUSIC_VOLUME || "0.035",
       thumbnailTtsEnabled: deepgramTtsConfig().enabled,
       thumbnailTtsProvider: deepgramTtsConfig().provider,
       thumbnailTtsFallbackProvider: deepgramTtsConfig().fallbackProvider,
