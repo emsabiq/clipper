@@ -836,10 +836,10 @@ THUMBNAIL_TTS_ENABLED=true
 THUMBNAIL_TTS_PROVIDER=deepgram
 THUMBNAIL_TTS_FALLBACK_PROVIDER=openai
 OPENAI_TTS_MODEL=gpt-4o-mini-tts
-OPENAI_TTS_VOICE=nova
+OPENAI_TTS_VOICE=onyx
 OPENAI_TTS_SPEED=1.12
-OPENAI_TTS_INSTRUCTIONS=Bicara sepenuhnya dalam Bahasa Indonesia. Gunakan pelafalan Indonesia natural seperti wanita dewasa Indonesia, jelas, hangat, percaya diri, dan sedikit cepat. Jangan memakai aksen Inggris atau intonasi bule. Cocok untuk pembuka video pendek.
-DEEPGRAM_TTS_MODEL=aura-2-amalthea-en
+OPENAI_TTS_INSTRUCTIONS=Bicara sepenuhnya dalam Bahasa Indonesia. Gunakan pelafalan Indonesia natural seperti pria dewasa Indonesia, jelas, tegas, percaya diri, dan sedikit cepat. Jangan memakai aksen Inggris atau intonasi bule. Cocok untuk pembuka video pendek.
+DEEPGRAM_TTS_MODEL=aura-2-apollo-en
 DEEPGRAM_TTS_SPEED=1.5
 DEEPGRAM_TTS_ACCENT_PROFILE=id
 DEEPGRAM_TTS_PRONUNCIATION_ENABLED=true
@@ -1019,7 +1019,7 @@ Model OpenAI TTS untuk pembuka thumbnail. Default: `gpt-4o-mini-tts`.
 
 #### `OPENAI_TTS_VOICE`
 
-Voice OpenAI TTS. Default: `nova` untuk karakter wanita natural.
+Voice OpenAI TTS. Default: `onyx` untuk karakter pria yang lebih tegas.
 
 #### `OPENAI_TTS_SPEED`
 
@@ -1027,11 +1027,11 @@ Kecepatan OpenAI TTS. Default: `1.12`, dibuat agak cepat tapi masih jelas untuk 
 
 #### `OPENAI_TTS_INSTRUCTIONS`
 
-Instruksi gaya bicara OpenAI TTS. Default memaksa Bahasa Indonesia natural, wanita dewasa Indonesia, jelas, hangat, dan tanpa aksen Inggris.
+Instruksi gaya bicara OpenAI TTS. Default memaksa Bahasa Indonesia natural, pria dewasa Indonesia, jelas, tegas, dan tanpa aksen Inggris.
 
 #### `DEEPGRAM_TTS_MODEL`
 
-Model suara Deepgram jika `THUMBNAIL_TTS_PROVIDER=deepgram`. Default: `aura-2-amalthea-en` untuk suara wanita.
+Model suara Deepgram jika `THUMBNAIL_TTS_PROVIDER=deepgram`. Default: `aura-2-apollo-en` untuk suara laki-laki confident.
 
 #### `DEEPGRAM_TTS_SPEED`
 

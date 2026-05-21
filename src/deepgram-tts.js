@@ -3,10 +3,10 @@ import path from "node:path";
 import { config } from "./config.js";
 
 const DEFAULT_TTS_PROVIDER = "deepgram";
-const DEFAULT_DEEPGRAM_TTS_MODEL = "aura-2-amalthea-en";
+const DEFAULT_DEEPGRAM_TTS_MODEL = "aura-2-apollo-en";
 const DEFAULT_DEEPGRAM_TTS_SPEED = 1.5;
 const DEFAULT_OPENAI_TTS_MODEL = "gpt-4o-mini-tts";
-const DEFAULT_OPENAI_TTS_VOICE = "nova";
+const DEFAULT_OPENAI_TTS_VOICE = "onyx";
 const DEFAULT_OPENAI_TTS_SPEED = 1.12;
 const DEFAULT_TTS_VOLUME = 1.45;
 const DEFAULT_TTS_TIMEOUT_MS = 45000;
@@ -14,7 +14,7 @@ const MAX_DEEPGRAM_TTS_CHARS = 2000;
 const MAX_OPENAI_TTS_CHARS = 4096;
 const DEFAULT_OPENAI_TTS_INSTRUCTIONS = [
   "Bicara sepenuhnya dalam Bahasa Indonesia.",
-  "Gunakan pelafalan Indonesia natural seperti wanita dewasa Indonesia, jelas, hangat, percaya diri, dan sedikit cepat.",
+  "Gunakan pelafalan Indonesia natural seperti pria dewasa Indonesia, jelas, tegas, percaya diri, dan sedikit cepat.",
   "Jangan memakai aksen Inggris atau intonasi bule.",
   "Tempo agak cepat, artikulasi tetap jelas, cocok untuk pembuka video pendek."
 ].join(" ");
