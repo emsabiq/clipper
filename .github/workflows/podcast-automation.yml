@@ -95,6 +95,14 @@ on:
         description: "Safe publish mode: all, youtube_only, social_only, none"
         required: false
         default: "all"
+      publish_ready_only:
+        description: "Publish an existing ready_to_publish job without generating a new clip: true/false"
+        required: false
+        default: "false"
+      publish_ready_job_id:
+        description: "Optional ready job id to publish; empty uses latest ready job"
+        required: false
+        default: ""
   schedule:
     # GitHub schedule uses UTC.
     # Target 15 video/hari, disebar dari pagi sampai malam WIB.
@@ -1042,6 +1050,7 @@ jobs:
         run: npm run check -- --offline
 
       - name: Generate and publish
+        if: ${{ github.event.inputs.publish_ready_only != 'true' }}
         timeout-minutes: 45
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -1088,3 +1097,22 @@ jobs:
           printf '\n'
 
           node src/run.js "${args[@]}"
+
+      - name: Publish ready job
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.publish_ready_only == 'true' }}
+        timeout-minutes: 30
+        env:
+          PUBLISH_READY_JOB_ID: ${{ github.event.inputs.publish_ready_job_id || '' }}
+        run: |
+          args=()
+
+          if [ -n "$PUBLISH_READY_JOB_ID" ]; then
+            args+=(--job "$PUBLISH_READY_JOB_ID")
+          fi
+
+          echo "Running command:"
+          printf 'npm run publish:ready --'
+          printf ' %q' "${args[@]}"
+          printf '\n'
+
+          npm run publish:ready -- "${args[@]}"
