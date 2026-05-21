@@ -1,7 +1,7 @@
 const STATE_URL = "/api/state";
 const POLL_ACTIVE_MS = 3000;
 const POLL_IDLE_MS = 30000;
-const ROW_LIMIT_DEFAULT = 8;
+const ROW_LIMIT_DEFAULT = 5;
 const ROW_LIMIT_EXPANDED = 32;
 
 const PIPELINE_STEPS = [
@@ -27,6 +27,7 @@ let authVisible = true;
 let pollTimer = null;
 let lastRunStatus = "idle";
 let latestActiveRun = null;
+let focusMode = window.sessionStorage.getItem("dashboardFocusMode") === "1";
 let cachedVideos = [];
 let cachedJobs = [];
 let latestVideoJob = null;
@@ -64,6 +65,7 @@ const els = {
   liveClock: document.querySelector("#liveClock"),
   refreshBtn: document.querySelector("#refreshBtn"),
   preflightBtn: document.querySelector("#preflightBtn"),
+  focusModeBtn: document.querySelector("#focusModeBtn"),
   logoutBtn: document.querySelector("#logoutBtn"),
   metrics: document.querySelector("#metrics"),
   workflowTitle: document.querySelector("#workflowTitle"),
@@ -671,8 +673,8 @@ function renderVideos(videos) {
   const baseVisible = videos.filter(isQueuePanelVideo);
   const filter = els.videoFilter?.value || "active";
   const visible = filterVideos(filter === "all" ? videos : baseVisible);
-  const hidden = videos.length - baseVisible.length;
-  els.videoCount.textContent = hidden ? `${visible.length}/${baseVisible.length} aktif` : `${visible.length} item`;
+  const shown = Math.min(videoLimit, visible.length);
+  els.videoCount.textContent = `${shown}/${visible.length} tampil`;
   els.videoRows.innerHTML = [...visible]
     .reverse()
     .slice(0, videoLimit)
@@ -692,7 +694,8 @@ function renderVideos(videos) {
 function renderJobs(jobs) {
   cachedJobs = jobs;
   const visible = filterJobs(jobs);
-  els.jobCount.textContent = `${visible.length}/${jobs.length} item`;
+  const shown = Math.min(jobLimit, visible.length);
+  els.jobCount.textContent = `${shown}/${visible.length} tampil`;
   els.jobRows.innerHTML = [...visible]
     .reverse()
     .slice(0, jobLimit)
@@ -867,6 +870,14 @@ function hideAuth() {
   schedulePoll();
 }
 
+function applyFocusMode() {
+  document.body.classList.toggle("focusMode", focusMode);
+  if (els.focusModeBtn) {
+    els.focusModeBtn.textContent = focusMode ? "Focus On" : "Focus";
+    els.focusModeBtn.classList.toggle("isActive", focusMode);
+  }
+}
+
 function schedulePoll() {
   stopPolling();
   const ms = document.hidden || authVisible ? null : lastRunStatus === "running" ? POLL_ACTIVE_MS : POLL_IDLE_MS;
@@ -933,6 +944,12 @@ els.videosMore?.addEventListener("click", () => {
 els.jobsMore?.addEventListener("click", () => {
   jobLimit = jobLimit > ROW_LIMIT_DEFAULT ? ROW_LIMIT_DEFAULT : ROW_LIMIT_EXPANDED;
   renderJobs(cachedJobs);
+});
+
+els.focusModeBtn?.addEventListener("click", () => {
+  focusMode = !focusMode;
+  window.sessionStorage.setItem("dashboardFocusMode", focusMode ? "1" : "0");
+  applyFocusMode();
 });
 
 els.videoSearch?.addEventListener("input", () => {
@@ -1268,6 +1285,7 @@ window.addEventListener("message", (event) => {
 });
 
 startClock();
+applyFocusMode();
 refresh().catch((error) => handleApiError(error));
 
 function effectSummary(cfg) {
@@ -1478,7 +1496,7 @@ function formatDateTime(value) {
 function toggleMoreButton(button, total, limit) {
   if (!button) return;
   button.hidden = total <= ROW_LIMIT_DEFAULT;
-  if (!button.hidden) button.textContent = limit > ROW_LIMIT_DEFAULT ? "Show less" : `Show more (${total - ROW_LIMIT_DEFAULT})`;
+  if (!button.hidden) button.textContent = limit > ROW_LIMIT_DEFAULT ? "Tampilkan 5 saja" : `Lihat lainnya (${total - ROW_LIMIT_DEFAULT})`;
 }
 
 function short(value, length = 54) {

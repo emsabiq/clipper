@@ -14,17 +14,17 @@
     <section id="authOverlay" class="authOverlay active" aria-hidden="false">
       <form id="authForm" class="loginPanel">
         <div class="loginBrand">
-          <span class="brandMark">EP</span>
+          <span class="brandMark">E</span>
           <div>
-            <p class="kicker">Secure Operator Console</p>
-            <h1>dashboard.emsa.pro</h1>
-            <span>Premium automation control for short-form publishing.</span>
+            <p class="kicker">Private Access</p>
+            <h1>Operator Console</h1>
+            <span>Masuk untuk mengelola queue, publish, storage, dan diagnostic.</span>
           </div>
         </div>
         <div class="loginSignal">
-          <span><b>Queue</b> guard</span>
-          <span><b>SFTP</b> watch</span>
-          <span><b>Publish</b> control</span>
+          <span><b>Queue</b><small>prioritas & status</small></span>
+          <span><b>Storage</b><small>SFTP/local watch</small></span>
+          <span><b>Publish</b><small>platform health</small></span>
         </div>
         <label class="field loginField">
           <span>Dashboard PIN</span>
@@ -50,6 +50,7 @@
         </div>
         <nav class="toolbar" aria-label="Dashboard actions">
           <button id="preflightBtn" class="btn ghost small" type="button">Preflight</button>
+          <button id="focusModeBtn" class="btn ghost small" type="button">Focus</button>
           <button id="refreshBtn" class="btn ghost small" type="button">Refresh</button>
           <button id="logoutBtn" class="btn ghost small" type="button">Logout</button>
         </nav>
@@ -427,7 +428,7 @@
               <tbody id="videoRows"></tbody>
             </table>
           </div>
-          <button id="videosMore" class="btn ghost small moreBtn" type="button" hidden>Show more</button>
+          <button id="videosMore" class="btn ghost small moreBtn" type="button" hidden>Lihat lainnya</button>
         </section>
 
         <section class="panel tablePanel jobsPanel">
@@ -463,7 +464,7 @@
               <tbody id="jobRows"></tbody>
             </table>
           </div>
-          <button id="jobsMore" class="btn ghost small moreBtn" type="button" hidden>Show more</button>
+          <button id="jobsMore" class="btn ghost small moreBtn" type="button" hidden>Lihat lainnya</button>
         </section>
       </section>
     </main>

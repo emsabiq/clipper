@@ -2211,3 +2211,477 @@ tbody tr:hover {
     min-height: 230px;
   }
 }
+
+/* Quiet executive refresh */
+:root {
+  --bg: #0d0f12;
+  --bg-2: #14171c;
+  --panel: rgba(22, 25, 31, 0.92);
+  --panel-2: rgba(27, 31, 38, 0.94);
+  --panel-3: rgba(34, 38, 46, 0.94);
+  --line: rgba(231, 223, 210, 0.1);
+  --line-2: rgba(231, 223, 210, 0.18);
+  --text: #f4efe7;
+  --muted: #a8afb9;
+  --faint: #717986;
+  --teal: #8fb8a8;
+  --blue: #7e96b8;
+  --lime: #b8c986;
+  --amber: #c4a46f;
+  --rose: #c9837c;
+  --violet: #9a8fb8;
+  --teal-soft: rgba(143, 184, 168, 0.12);
+  --blue-soft: rgba(126, 150, 184, 0.13);
+  --lime-soft: rgba(184, 201, 134, 0.11);
+  --amber-soft: rgba(196, 164, 111, 0.13);
+  --rose-soft: rgba(201, 131, 124, 0.12);
+  --radius: 8px;
+  --shadow: 0 18px 54px rgba(0, 0, 0, 0.34);
+}
+
+body {
+  background:
+    linear-gradient(180deg, rgba(231, 223, 210, 0.035), transparent 320px),
+    linear-gradient(135deg, #12151a 0%, #0d0f12 48%, #111318 100%);
+}
+
+body::before,
+body::after {
+  display: none;
+}
+
+.bgLayer {
+  background-image:
+    linear-gradient(rgba(231, 223, 210, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(231, 223, 210, 0.025) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(#000 0%, rgba(0, 0, 0, 0.64) 54%, transparent 100%);
+}
+
+.appShell {
+  width: min(1540px, calc(100% - 32px));
+  gap: 14px;
+  padding-top: 14px;
+}
+
+.panel,
+.metric {
+  position: relative;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent),
+    var(--panel);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.panel::before,
+.metric::before,
+.metric::after,
+.loginPanel::before {
+  display: none;
+}
+
+.kicker {
+  color: var(--amber);
+  letter-spacing: 0.12em;
+}
+
+.appHeader {
+  top: 12px;
+  grid-template-columns: auto minmax(280px, 1fr) auto;
+  padding: 12px 14px;
+  border-color: rgba(196, 164, 111, 0.18);
+  background: rgba(16, 18, 23, 0.92);
+}
+
+.brandMark {
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(196, 164, 111, 0.38);
+  border-radius: 8px;
+  background: linear-gradient(145deg, #d6c19b, #9f8052);
+  color: #17130d;
+  box-shadow: none;
+}
+
+.brandBlock h1 {
+  font-size: 18px;
+}
+
+.headerStatus {
+  justify-self: stretch;
+  min-width: 0;
+  padding: 8px 12px;
+  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.025);
+  text-align: left;
+}
+
+.clock,
+.runTimer {
+  color: var(--amber);
+}
+
+.toolbar .btn.isActive {
+  border-color: rgba(196, 164, 111, 0.5);
+  background: var(--amber-soft);
+  color: var(--text);
+}
+
+.btn {
+  border-radius: 8px;
+}
+
+.btn.primary {
+  background: linear-gradient(180deg, #d2b780, #a98551);
+  color: #19140d;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
+}
+
+.btn.ghost {
+  border-color: var(--line-2);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.btn.ghost:hover {
+  border-color: rgba(196, 164, 111, 0.42);
+  background: rgba(196, 164, 111, 0.1);
+}
+
+.authOverlay {
+  background:
+    linear-gradient(180deg, rgba(231, 223, 210, 0.05), transparent 44%),
+    #0d0f12;
+}
+
+.loginPanel {
+  width: min(100%, 460px);
+  gap: 18px;
+  padding: 30px;
+  border: 1px solid rgba(196, 164, 111, 0.2);
+  background: rgba(22, 25, 31, 0.96);
+}
+
+.loginBrand {
+  align-items: flex-start;
+}
+
+.loginBrand .brandMark {
+  width: 48px;
+  height: 48px;
+  font-size: 16px;
+}
+
+.loginBrand h1 {
+  margin-top: 3px;
+  color: var(--text);
+  font-size: 30px;
+  line-height: 1.08;
+}
+
+.loginBrand span:not(.brandMark) {
+  max-width: 330px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.loginSignal {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.loginSignal span {
+  min-height: 74px;
+  justify-items: start;
+  align-content: center;
+  gap: 4px;
+  padding: 12px;
+  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.028);
+  text-align: left;
+}
+
+.loginSignal b {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.loginSignal small {
+  color: var(--faint);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.field input,
+.field select,
+.field textarea,
+.miniInput,
+.miniSelect {
+  border-color: rgba(231, 223, 210, 0.16);
+  background: rgba(7, 9, 12, 0.46);
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+.miniInput:focus,
+.miniSelect:focus {
+  border-color: rgba(196, 164, 111, 0.65);
+  box-shadow: 0 0 0 3px rgba(196, 164, 111, 0.12);
+}
+
+.topOpsGrid {
+  grid-template-columns: minmax(0, 1.42fr) minmax(360px, 0.72fr);
+  gap: 14px;
+}
+
+.heroConsole {
+  min-height: 380px;
+  border-color: rgba(143, 184, 168, 0.16);
+  background:
+    linear-gradient(180deg, rgba(20, 24, 30, 0.96), rgba(11, 13, 17, 0.96));
+}
+
+.heroConsole #consoleOutput {
+  min-height: 300px;
+  max-height: 460px;
+  border-color: rgba(231, 223, 210, 0.1);
+  background: #090b0e;
+  color: #d7e0dc;
+}
+
+.reliabilityPanel {
+  border-color: rgba(196, 164, 111, 0.14);
+}
+
+.reliabilityGrid {
+  gap: 8px;
+}
+
+.reliabilityGrid article,
+.insight,
+.platformItem,
+.ttsVoiceCard {
+  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.028);
+}
+
+.reliabilityGrid article {
+  min-height: 98px;
+}
+
+.reliabilityGrid strong,
+.metric strong {
+  color: var(--text);
+}
+
+.reliabilityGrid article:nth-child(1) strong,
+.metric:nth-child(1) strong {
+  color: var(--amber);
+}
+
+.reliabilityGrid article:nth-child(2) strong,
+.metric:nth-child(2) strong {
+  color: var(--blue);
+}
+
+.reliabilityGrid article:nth-child(3) strong,
+.metric:nth-child(3) strong {
+  color: var(--teal);
+}
+
+.reliabilityGrid article:nth-child(4) strong,
+.metric:nth-child(4) strong {
+  color: var(--lime);
+}
+
+.opsNote,
+.diagnosticFeed article,
+.diagnosticFeed > span {
+  border-color: rgba(196, 164, 111, 0.16);
+  background: rgba(196, 164, 111, 0.055);
+}
+
+.metricGrid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.metric {
+  min-height: 104px;
+  padding: 14px;
+}
+
+.metric span,
+.reliabilityGrid span,
+.ttsVoiceCard span {
+  letter-spacing: 0.1em;
+}
+
+.commandLayout,
+.analyticsGrid,
+.taskGrid {
+  gap: 14px;
+}
+
+.progressLine,
+.queueGauge {
+  height: 8px;
+  background: rgba(231, 223, 210, 0.08);
+}
+
+.progressLine span,
+.queueGauge span,
+.progressLine span.running {
+  background: linear-gradient(90deg, var(--amber), var(--teal));
+}
+
+.runTimer {
+  min-height: 26px;
+  border-color: rgba(196, 164, 111, 0.25);
+  background: rgba(196, 164, 111, 0.09);
+  color: var(--amber);
+}
+
+.processNode {
+  flex-basis: 124px;
+  min-height: 82px;
+  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.026);
+}
+
+.processNode.active {
+  border-color: rgba(196, 164, 111, 0.42);
+  background: var(--amber-soft);
+}
+
+.processNode.done {
+  border-color: rgba(143, 184, 168, 0.38);
+  background: var(--teal-soft);
+}
+
+.processNode.active i {
+  background: var(--amber);
+}
+
+.processNode.done i {
+  background: var(--teal);
+}
+
+.chartPanel,
+.formPanel,
+.tablePanel,
+.latestVideoPanel,
+.ttsPanel {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent),
+    var(--panel);
+}
+
+.toggleField {
+  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.toggleField input {
+  accent-color: var(--amber);
+}
+
+.monitorGrid {
+  grid-template-columns: 1fr;
+}
+
+.tablePanel {
+  border-color: rgba(126, 150, 184, 0.15);
+}
+
+.tableWrap {
+  border: 1px solid rgba(231, 223, 210, 0.07);
+  border-radius: 8px;
+  background: rgba(8, 10, 13, 0.22);
+}
+
+th {
+  color: var(--faint);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+tbody tr:hover {
+  background: rgba(196, 164, 111, 0.055);
+}
+
+.moreBtn {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.ttsTester {
+  grid-template-columns: minmax(280px, 1fr) 190px auto;
+}
+
+.ttsVoiceCard strong {
+  color: var(--amber);
+}
+
+body.focusMode .taskGrid,
+body.focusMode .latestVideoPanel,
+body.focusMode .ttsPanel {
+  display: none;
+}
+
+body.focusMode .analyticsGrid {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.8fr) minmax(300px, 0.8fr);
+}
+
+@media (max-width: 1180px) {
+  .topOpsGrid,
+  .commandLayout,
+  .analyticsGrid,
+  .taskGrid,
+  body.focusMode .analyticsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .metricGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .appShell {
+    width: min(100% - 16px, 1540px);
+    padding-top: 10px;
+  }
+
+  .appHeader {
+    grid-template-columns: 1fr;
+  }
+
+  .headerStatus {
+    text-align: left;
+  }
+
+  .loginPanel {
+    padding: 22px;
+  }
+
+  .loginBrand h1 {
+    font-size: 26px;
+  }
+
+  .loginSignal,
+  .metricGrid,
+  .reliabilityGrid,
+  .ttsTester {
+    grid-template-columns: 1fr;
+  }
+
+  .heroConsole {
+    min-height: 310px;
+  }
+
+  .heroConsole #consoleOutput {
+    min-height: 220px;
+  }
+}
