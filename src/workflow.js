@@ -22,15 +22,24 @@ import { clearYoutubeQuotaExceeded, markYoutubeQuotaExceeded, youtubeQuotaCooldo
 import { assertPreflightOk, printPreflightReport, runPreflight } from "./preflight.js";
 import { discoverAndQueueVideos } from "./video-discovery.js";
 import { applyVideoEffects } from "./video-effects.js";
+import { writeJobDiagnostic } from "./diagnostics.js";
+import { enabledPublishPlatformsFromConfig, selectPublishPlatforms } from "./publish-mode.js";
 
 export async function runWorkflow(options = {}) {
   await ensureProjectDirs();
 
-  const publishRequired = Boolean(options.publish && canPublish());
+  const preflightPublishDecision = publishDecisionFromConfig();
+  const publishRequested = Boolean(options.publish && canPublish());
+  const anyPublishSelected = publishRequested && (
+    preflightPublishDecision.mode === "all" || preflightPublishDecision.hasSelectedPlatform
+  );
+  const youtubePublishRequired = publishRequested && (
+    preflightPublishDecision.mode === "all" || preflightPublishDecision.platforms.youtube
+  );
   const preflight = await runPreflight({
-    publishRequired,
+    publishRequired: youtubePublishRequired,
     socialPublishRequired: false,
-    socialOnline: publishRequired,
+    socialOnline: anyPublishSelected,
     deepgramOnline: false
   });
   printPreflightReport(preflight);
@@ -90,7 +99,8 @@ export async function runWorkflow(options = {}) {
       options,
       scheduledDailyLimit,
       scheduledPostedToday,
-      keepVideoQueued: false
+      keepVideoQueued: false,
+      preflight
     });
   }
 
@@ -141,7 +151,8 @@ export async function runWorkflow(options = {}) {
         options,
         scheduledDailyLimit,
         scheduledPostedToday,
-        keepVideoQueued
+        keepVideoQueued,
+        preflight
       });
       if (failedSelections.length) {
         return {
@@ -295,7 +306,7 @@ async function noVideoSelectedResult({ discoveryResult, failedSelections }) {
   };
 }
 
-async function processSelectedWorkflow({ selection, options, scheduledDailyLimit, scheduledPostedToday, keepVideoQueued = false }) {
+async function processSelectedWorkflow({ selection, options, scheduledDailyLimit, scheduledPostedToday, keepVideoQueued = false, preflight = null }) {
   const runtimeVideo = options.useSubtitleHighlight === true
     ? { ...selection.video, use_subtitle_highlight: true }
     : selection.video;
@@ -399,6 +410,15 @@ async function processSelectedWorkflow({ selection, options, scheduledDailyLimit
           error: error.message
         };
         clipResults.push(failed);
+        await writeJobDiagnostic({
+          job: { ...job, job_id: failed.clipJobId },
+          video,
+          stage: "clip_failed",
+          status: "failed",
+          error,
+          output,
+          preflight
+        });
         await appendLog("clip_failed", {
           job_id: job.job_id,
           clip_index: index + 1,
@@ -416,7 +436,7 @@ async function processSelectedWorkflow({ selection, options, scheduledDailyLimit
       throw new Error(clipResults.map((item) => item.error).filter(Boolean).join("; ") || "Semua clip gagal diproses.");
     }
 
-    const final = finalStatusFromClipResults(clipResults, Boolean(options.publish && canPublish()));
+    const final = finalStatusFromClipResults(clipResults, workflowPublishEnabled(options));
     const firstSuccess = clipResults.find((item) => item.ok);
     const lastPlatformResults = [...clipResults].reverse().find((item) => item.platformResults)?.platformResults || {};
 
@@ -476,6 +496,14 @@ async function processSelectedWorkflow({ selection, options, scheduledDailyLimit
       error_message: error.message
     });
     await maybeUpdateVideoStatus("failed", { error_message: error.message });
+    await writeJobDiagnostic({
+      job,
+      video,
+      stage: "workflow_failed",
+      status: "failed",
+      error,
+      preflight
+    });
     await uploadStateToRemote().catch(() => {});
     await appendLog("workflow_failed", { job_id: job.job_id, error: error.message });
     throw error;
@@ -631,13 +659,18 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
     public_metadata_url: upload.metadataUrl
   });
 
-  if (options.publish && canPublish()) {
+  const publishDecision = publishDecisionFromConfig();
+  const publishEnabled = Boolean(options.publish && canPublish());
+  const canAttemptPublish = publishEnabled && (publishDecision.mode === "all" || publishDecision.hasSelectedPlatform);
+
+  if (canAttemptPublish) {
     const platformResults = await publishPlatforms({
       job,
       output,
       caption,
       upload,
-      thumbnail
+      thumbnail,
+      publishDecision
     });
     const primaryPublished = platformResults.hasAnySuccess;
     const youtubeQuotaExceeded = Boolean(platformResults.quotaExceeded?.youtube);
@@ -702,6 +735,17 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
     };
   }
 
+  if (publishEnabled) {
+    await appendSafePublishModeSkips(job.job_id, publishDecision);
+    if (publishDecision.mode !== "all" && !publishDecision.hasSelectedPlatform) {
+      await appendLog("safe_publish_mode_no_platforms", {
+        job_id: job.job_id,
+        mode: publishDecision.mode
+      });
+      console.warn(`SAFE_PUBLISH_MODE=${publishDecision.mode}; tidak ada platform publish yang dipilih.`);
+    }
+  }
+
   const status = options.publish ? "dry_run" : "ready_to_publish";
   await appendHistoryEntry({ job: storageJob, video, caption, output, upload, status, clipIndex, clipTotal: total });
   return {
@@ -763,7 +807,7 @@ function summarizeClipResult(result) {
   };
 }
 
-function finalStatusFromClipResults(clipResults, publishEnabled) {
+export function finalStatusFromClipResults(clipResults, publishEnabled) {
   const successfulClips = clipResults.filter((item) => item.ok).length;
   const failedClips = clipResults.filter((item) => !item.ok).length;
   const publishedClips = clipResults.filter((item) => item.primaryPublished).length;
@@ -842,7 +886,29 @@ async function updateJob(jobId, patch) {
   return patchItem("jobs", jobId, patch);
 }
 
-async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
+function publishDecisionFromConfig() {
+  return selectPublishPlatforms(enabledPublishPlatformsFromConfig(config), config.safePublishMode);
+}
+
+function workflowPublishEnabled(options) {
+  if (!(options.publish && canPublish())) return false;
+  const decision = publishDecisionFromConfig();
+  if (decision.mode === "all") return true;
+  return decision.hasSelectedPlatform;
+}
+
+async function appendSafePublishModeSkips(jobId, publishDecision) {
+  for (const [platform, mode] of Object.entries(publishDecision.skippedBySafeMode || {})) {
+    await appendLog("safe_publish_mode_skip", {
+      job_id: jobId,
+      platform,
+      mode
+    });
+    console.warn(`${platform} publish dilewati karena SAFE_PUBLISH_MODE=${mode}.`);
+  }
+}
+
+async function publishPlatforms({ job, output, caption, upload, thumbnail, publishDecision = publishDecisionFromConfig() }) {
   const socialCaption = stripCaptionSourceCredit(caption, {
     sourceUrl: job.source_url
   });
@@ -859,7 +925,12 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
     hasErrors: false
   };
 
-  if (config.youtube.enabled) {
+  platformResults.safePublishMode = publishDecision.mode;
+  platformResults.skippedBySafeMode = publishDecision.skippedBySafeMode;
+
+  await appendSafePublishModeSkips(job.job_id, publishDecision);
+
+  if (publishDecision.platforms.youtube) {
     const cooldown = await youtubeQuotaCooldown("upload");
     if (cooldown.active) {
       platformResults.hasErrors = true;
@@ -922,7 +993,7 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
     }
   }
 
-  if (config.facebook.enabled) {
+  if (publishDecision.platforms.facebook) {
     platformResults.facebook = await publishPlatform("facebook", platformResults, job.job_id, async () => {
       if (!upload.videoUrl) throw new Error("PUBLIC_BASE_URL/SFTP wajib valid sebelum publish Facebook.");
       await updateJob(job.job_id, { facebook_status: "processing", facebook_error: "" });
@@ -936,7 +1007,7 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
     });
   }
 
-  if (config.instagram.enabled) {
+  if (publishDecision.platforms.instagram) {
     platformResults.instagram = await publishPlatform("instagram", platformResults, job.job_id, async () => {
       if (!upload.videoUrl) throw new Error("PUBLIC_BASE_URL/SFTP wajib valid sebelum publish Instagram.");
       await updateJob(job.job_id, { instagram_status: "processing", instagram_error: "" });
@@ -953,7 +1024,7 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
     });
   }
 
-  if (config.tiktok.enabled) {
+  if (publishDecision.platforms.tiktok) {
     platformResults.tiktok = await publishPlatform("tiktok", platformResults, job.job_id, async () => {
       if (!upload.videoUrl) throw new Error("PUBLIC_BASE_URL/SFTP wajib valid sebelum publish TikTok.");
       await updateJob(job.job_id, { tiktok_status: "processing", tiktok_error: "" });
@@ -965,7 +1036,7 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
     });
   }
 
-  if (config.threads.enabled) {
+  if (publishDecision.platforms.threads) {
     platformResults.threads = await publishPlatform("threads", platformResults, job.job_id, async () => {
       if (!upload.videoUrl) throw new Error("PUBLIC_BASE_URL/SFTP wajib valid sebelum publish Threads.");
       await updateJob(job.job_id, { threads_status: "processing", threads_error: "" });

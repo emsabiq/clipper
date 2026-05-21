@@ -11,6 +11,7 @@ data/jobs.json
 data/history.json
 data/discovery-cache.json
 data/youtube-quota.json
+data/.backups/
 
 .env
 *.env
@@ -30,6 +31,7 @@ generated/thumbnails/
 generated/metadata/
 generated/logs/*.log
 generated/logs/*.jsonl
+generated/logs/*.json
 
 *.zip
 .DS_Store

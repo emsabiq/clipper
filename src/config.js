@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseSafePublishMode } from "./publish-mode.js";
 
 dotenv.config();
 
@@ -20,15 +21,22 @@ function cleanBrandText(value) {
   return cleanText(value).replace(/@(?:emsa\.pro|clipperemsapro)\b/gi, "@PodFlask");
 }
 
-function boolEnv(name, fallback = false) {
-  const value = process.env[name];
+export function parseBoolConfigValue(value, fallback = false) {
   if (value === undefined || value === "") return fallback;
   return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
 }
 
+export function parseNumberConfigValue(value, fallback) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function boolEnv(name, fallback = false) {
+  return parseBoolConfigValue(process.env[name], fallback);
+}
+
 function numberEnv(name, fallback) {
-  const value = Number(process.env[name]);
-  return Number.isFinite(value) ? value : fallback;
+  return parseNumberConfigValue(process.env[name], fallback);
 }
 
 function firstEnv(names, fallback = "") {
@@ -98,6 +106,7 @@ function buildConfig() {
     timezone: cleanText(process.env.APP_TIMEZONE || "Asia/Jakarta"),
     publicBaseUrl: cleanBaseUrl(process.env.PUBLIC_BASE_URL),
     uploadDriver,
+    safePublishMode: parseSafePublishMode(process.env.SAFE_PUBLISH_MODE),
     dryRun: boolEnv("DRY_RUN", true),
     autoPublish: boolEnv("AUTO_PUBLISH", false),
     cleanupLocalAfterPublish: boolEnv("CLEANUP_LOCAL_AFTER_PUBLISH", false),

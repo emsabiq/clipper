@@ -11,6 +11,8 @@ import { publishToTikTok } from "./tiktok.js";
 import { publishToThreads } from "./threads.js";
 import { stripCaptionSourceCredit } from "./caption-policy.js";
 import { clearYoutubeQuotaExceeded, markYoutubeQuotaExceeded, youtubeQuotaCooldown } from "./youtube-quota.js";
+import { writeJobDiagnostic } from "./diagnostics.js";
+import { enabledPublishPlatformsFromConfig, selectPublishPlatforms } from "./publish-mode.js";
 
 function argValue(name, fallback = "") {
   const index = process.argv.indexOf(name);
@@ -18,7 +20,7 @@ function argValue(name, fallback = "") {
   return process.argv[index + 1] || fallback;
 }
 
-function latestReadyJob(jobs) {
+function latestReadyJob(jobs, selectedPlatforms = enabledPublishPlatformsFromConfig(config)) {
   const retryableStatuses = new Set([
     "ready_to_publish",
     "publish_failed",
@@ -30,10 +32,10 @@ function latestReadyJob(jobs) {
   return jobs
     .filter((job) => {
       const needsPlatform = [
-        config.youtube.enabled && !job.youtube_url && !job.youtube_video_id,
-        config.instagram.enabled && !job.instagram_media_id,
-        config.tiktok.enabled && !job.tiktok_publish_id,
-        config.threads.enabled && !job.threads_media_id
+        selectedPlatforms.youtube && !job.youtube_url && !job.youtube_video_id,
+        selectedPlatforms.instagram && !job.instagram_media_id,
+        selectedPlatforms.tiktok && !job.tiktok_publish_id,
+        selectedPlatforms.threads && !job.threads_media_id
       ].some(Boolean);
       if (!needsPlatform) return false;
       return [job.status, job.publish_status, job.youtube_status]
@@ -136,25 +138,37 @@ async function publishReadyPlatform(name, jobId, errors, quotaExceeded, callback
   }
 }
 
+function publishReadyDecisionFromConfig() {
+  const enabled = enabledPublishPlatformsFromConfig(config);
+  return selectPublishPlatforms({ ...enabled, facebook: false }, config.safePublishMode);
+}
+
+async function appendSafePublishModeSkips(jobId, publishDecision) {
+  for (const [platform, mode] of Object.entries(publishDecision.skippedBySafeMode || {})) {
+    await appendLog("safe_publish_mode_skip", {
+      job_id: jobId,
+      platform,
+      mode
+    });
+    console.warn(`${platform} publish dilewati karena SAFE_PUBLISH_MODE=${mode}.`);
+  }
+}
+
 const jobId = argValue("--job", "");
 const forceYoutube = process.argv.includes("--force-youtube");
 const onlyYoutubeThumbnail = process.argv.includes("--only-youtube-thumbnail");
 const forceThumbnail = onlyYoutubeThumbnail || process.argv.includes("--force-thumbnail") || process.argv.includes("--set-youtube-thumbnail");
+const publishDecision = publishReadyDecisionFromConfig();
 
 await downloadStateFromRemote().catch((error) => {
   console.warn(`State remote dilewati: ${error.message}`);
 });
 
 const jobs = await readJson("jobs", []);
-const job = jobId ? jobs.find((item) => item.job_id === jobId) : latestReadyJob(jobs);
+const job = jobId ? jobs.find((item) => item.job_id === jobId) : latestReadyJob(jobs, publishDecision.platforms);
 
 if (!job) {
   console.error("Tidak ada job ready_to_publish.");
-  process.exit(1);
-}
-
-if (!config.youtube.enabled && !config.instagram.enabled && !config.tiktok.enabled && !config.threads.enabled) {
-  console.error("Tidak ada platform aktif. Aktifkan YOUTUBE_UPLOAD_ENABLED, INSTAGRAM_UPLOAD_ENABLED, TIKTOK_UPLOAD_ENABLED, atau THREADS_UPLOAD_ENABLED.");
   process.exit(1);
 }
 
@@ -163,7 +177,26 @@ if (!job.final_video_path && !job.public_video_url) {
   process.exit(1);
 }
 
-if (onlyYoutubeThumbnail && !config.youtube.enabled) {
+if (publishDecision.mode !== "all" && !publishDecision.hasSelectedPlatform) {
+  await appendSafePublishModeSkips(job.job_id, publishDecision);
+  await appendLog("safe_publish_mode_no_platforms", {
+    job_id: job.job_id,
+    mode: publishDecision.mode
+  });
+  console.log(JSON.stringify({
+    status: "safe_publish_mode_skipped",
+    job_id: job.job_id,
+    mode: publishDecision.mode
+  }, null, 2));
+  process.exit(0);
+}
+
+if (!config.youtube.enabled && !config.instagram.enabled && !config.tiktok.enabled && !config.threads.enabled) {
+  console.error("Tidak ada platform aktif. Aktifkan YOUTUBE_UPLOAD_ENABLED, INSTAGRAM_UPLOAD_ENABLED, TIKTOK_UPLOAD_ENABLED, atau THREADS_UPLOAD_ENABLED.");
+  process.exit(1);
+}
+
+if (onlyYoutubeThumbnail && !publishDecision.platforms.youtube) {
   console.error("YOUTUBE_UPLOAD_ENABLED harus aktif untuk set thumbnail YouTube.");
   process.exit(1);
 }
@@ -177,10 +210,10 @@ await patchItem("jobs", job.job_id, onlyYoutubeThumbnail ? {
   youtube_status: "processing",
   youtube_thumbnail_error: ""
 } : {
-  youtube_status: config.youtube.enabled && (!job.youtube_url || forceYoutube) ? "processing" : job.youtube_status,
-  instagram_status: config.instagram.enabled && !job.instagram_media_id ? "processing" : job.instagram_status,
-  tiktok_status: config.tiktok.enabled && !job.tiktok_publish_id ? "processing" : job.tiktok_status,
-  threads_status: config.threads.enabled && !job.threads_media_id ? "processing" : job.threads_status,
+  youtube_status: publishDecision.platforms.youtube && (!job.youtube_url || forceYoutube) ? "processing" : job.youtube_status,
+  instagram_status: publishDecision.platforms.instagram && !job.instagram_media_id ? "processing" : job.instagram_status,
+  tiktok_status: publishDecision.platforms.tiktok && !job.tiktok_publish_id ? "processing" : job.tiktok_status,
+  threads_status: publishDecision.platforms.threads && !job.threads_media_id ? "processing" : job.threads_status,
   publish_status: "publishing",
   status: "publishing"
 });
@@ -224,7 +257,9 @@ try {
     selectedAngle: job.selectedAngle || ""
   };
 
-  if (!onlyYoutubeThumbnail && config.youtube.enabled && (!youtube || forceYoutube)) {
+  await appendSafePublishModeSkips(job.job_id, publishDecision);
+
+  if (!onlyYoutubeThumbnail && publishDecision.platforms.youtube && (!youtube || forceYoutube)) {
     const cooldown = await youtubeQuotaCooldown("upload");
     if (cooldown.active) {
       platformErrors.youtube = `YouTube quota cooldown aktif sampai ${cooldown.until}.`;
@@ -261,7 +296,7 @@ try {
   }
 
   if (
-    config.youtube.enabled
+    publishDecision.platforms.youtube
     && youtube?.videoId
     && thumbnailPath
     && (forceThumbnail || (config.youtube.customThumbnailEnabled && youtube.customThumbnail !== true))
@@ -298,7 +333,7 @@ try {
     process.exit(thumbnailOk ? 0 : 1);
   }
 
-  if (config.instagram.enabled && !instagram) {
+  if (publishDecision.platforms.instagram && !instagram) {
     const publishedInstagram = await publishReadyPlatform("instagram", job.job_id, platformErrors, quotaExceeded, async () => {
       if (!job.public_video_url) throw new Error("public_video_url kosong, Instagram butuh URL video publik dari remote storage.");
       return publishReel({
@@ -309,7 +344,7 @@ try {
     if (publishedInstagram) instagram = publishedInstagram;
   }
 
-  if (config.tiktok.enabled && !tiktok) {
+  if (publishDecision.platforms.tiktok && !tiktok) {
     const publishedTikTok = await publishReadyPlatform("tiktok", job.job_id, platformErrors, quotaExceeded, async () => {
       if (!job.public_video_url) throw new Error("public_video_url kosong, TikTok butuh URL video publik dari remote storage.");
       return publishToTikTok({
@@ -321,7 +356,7 @@ try {
     if (publishedTikTok) tiktok = publishedTikTok;
   }
 
-  if (config.threads.enabled && !threads) {
+  if (publishDecision.platforms.threads && !threads) {
     const publishedThreads = await publishReadyPlatform("threads", job.job_id, platformErrors, quotaExceeded, async () => {
       if (!job.public_video_url) throw new Error("public_video_url kosong, Threads butuh URL video publik dari remote storage.");
       return publishToThreads({
@@ -341,20 +376,20 @@ try {
         youtube_error: platformErrors.youtube || "",
         instagram_status: readyPlatformStatus({
           result: instagram,
-          enabled: config.instagram.enabled,
+          enabled: publishDecision.platforms.instagram,
           error: platformErrors.instagram
         }),
         instagram_error: platformErrors.instagram || "",
         tiktok_status: readyPlatformStatus({
           result: tiktok,
-          enabled: config.tiktok.enabled,
+          enabled: publishDecision.platforms.tiktok,
           error: platformErrors.tiktok,
           successStatus: "submitted"
         }),
         tiktok_error: platformErrors.tiktok || "",
         threads_status: readyPlatformStatus({
           result: threads,
-          enabled: config.threads.enabled,
+          enabled: publishDecision.platforms.threads,
           error: platformErrors.threads
         }),
         threads_error: platformErrors.threads || "",
@@ -383,7 +418,7 @@ try {
     publish_status: hasPlatformErrors ? "published_with_warnings" : "published",
     youtube_status: readyPlatformStatus({
       result: youtube,
-      enabled: config.youtube.enabled,
+      enabled: publishDecision.platforms.youtube,
       error: platformErrors.youtube,
       quotaExceeded: quotaExceeded.youtube
     }),
@@ -395,14 +430,14 @@ try {
     youtube_published_at: youtube?.skipped ? job.youtube_published_at : youtube ? now : "",
     instagram_status: readyPlatformStatus({
       result: instagram,
-      enabled: config.instagram.enabled,
+      enabled: publishDecision.platforms.instagram,
       error: platformErrors.instagram
     }),
     instagram_media_id: instagram?.mediaId || "",
     instagram_error: platformErrors.instagram || "",
     tiktok_status: readyPlatformStatus({
       result: tiktok,
-      enabled: config.tiktok.enabled,
+      enabled: publishDecision.platforms.tiktok,
       error: platformErrors.tiktok,
       successStatus: "submitted"
     }),
@@ -411,7 +446,7 @@ try {
     tiktok_error: platformErrors.tiktok || "",
     threads_status: readyPlatformStatus({
       result: threads,
-      enabled: config.threads.enabled,
+      enabled: publishDecision.platforms.threads,
       error: platformErrors.threads
     }),
     threads_media_id: threads?.mediaId || "",
@@ -496,13 +531,13 @@ try {
   await patchItem("jobs", job.job_id, {
     status: "failed_publish",
     publish_status: "failed_publish",
-    youtube_status: hasYoutube ? "published" : config.youtube.enabled ? "failed" : job.youtube_status,
+    youtube_status: hasYoutube ? "published" : publishDecision.platforms.youtube ? "failed" : job.youtube_status,
     youtube_video_id: youtube?.videoId || job.youtube_video_id || "",
     youtube_url: youtube?.url || job.youtube_url || "",
-    instagram_status: config.instagram.enabled ? "failed" : job.instagram_status,
-    tiktok_status: hasTikTok ? "submitted" : config.tiktok.enabled ? "failed" : job.tiktok_status,
+    instagram_status: publishDecision.platforms.instagram ? "failed" : job.instagram_status,
+    tiktok_status: hasTikTok ? "submitted" : publishDecision.platforms.tiktok ? "failed" : job.tiktok_status,
     tiktok_publish_id: tiktok?.publishId || job.tiktok_publish_id || "",
-    threads_status: hasThreads ? "published" : config.threads.enabled ? "failed" : job.threads_status,
+    threads_status: hasThreads ? "published" : publishDecision.platforms.threads ? "failed" : job.threads_status,
     threads_media_id: threads?.mediaId || job.threads_media_id || "",
     threads_url: threads?.url || job.threads_url || "",
     error_message: error.message
@@ -510,6 +545,20 @@ try {
   await appendLog("platform_publish_failed", {
     job_id: job.job_id,
     error: error.message
+  });
+  await writeJobDiagnostic({
+    job,
+    stage: "publish_ready_failed",
+    status: "failed_publish",
+    error,
+    platformResults: {
+      youtube,
+      instagram,
+      tiktok,
+      threads,
+      errors: platformErrors,
+      quotaExceeded
+    }
   });
   await uploadStateToRemote().catch(() => {});
   throw error;
