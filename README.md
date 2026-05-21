@@ -833,12 +833,14 @@ THUMBNAIL_PILL_TEXT=Podcast | Highlight | Viral
 THUMBNAIL_INTRO_ENABLED=true
 THUMBNAIL_INTRO_SECONDS=0.9
 THUMBNAIL_TTS_ENABLED=true
-THUMBNAIL_TTS_PROVIDER=deepgram
-THUMBNAIL_TTS_FALLBACK_PROVIDER=openai
+THUMBNAIL_TTS_PROVIDER=openai
+THUMBNAIL_TTS_FALLBACK_PROVIDER=none
 OPENAI_TTS_MODEL=gpt-4o-mini-tts
 OPENAI_TTS_VOICE=onyx
-OPENAI_TTS_SPEED=1.12
-OPENAI_TTS_INSTRUCTIONS=Bicara sepenuhnya dalam Bahasa Indonesia. Gunakan pelafalan Indonesia natural seperti pria dewasa Indonesia, jelas, tegas, percaya diri, dan sedikit cepat. Jangan memakai aksen Inggris atau intonasi bule. Cocok untuk pembuka video pendek.
+OPENAI_TTS_SPEED=1.35
+OPENAI_TTS_INSTRUCTIONS=Bicara sepenuhnya dalam Bahasa Indonesia. Gunakan pelafalan Indonesia natural seperti pria dewasa Indonesia, jelas, tegas, percaya diri, dan cepat. Jangan memakai aksen Inggris atau intonasi bule. Baca tanpa jeda dramatis, tanpa menyuarakan tanda baca, dan cocok untuk pembuka video pendek.
+THUMBNAIL_TTS_STRIP_PUNCTUATION=true
+THUMBNAIL_TTS_MAX_CHARS=90
 DEEPGRAM_TTS_MODEL=aura-2-apollo-en
 DEEPGRAM_TTS_SPEED=1.5
 DEEPGRAM_TTS_ACCENT_PROFILE=id
@@ -1007,11 +1009,11 @@ Segmen pembuka hanya berisi thumbnail freeze + audio TTS; audio video utama dan 
 
 #### `THUMBNAIL_TTS_PROVIDER`
 
-Provider TTS pembuka thumbnail. Default: `deepgram` supaya memakai voice Deepgram yang cepat dan ringan.
+Provider TTS pembuka thumbnail. Default: `openai` dengan model mini agar tetap hemat untuk teks judul pendek.
 
 #### `THUMBNAIL_TTS_FALLBACK_PROVIDER`
 
-Provider fallback ketika TTS utama gagal. Default: `openai`, jadi video tetap punya TTS jika Deepgram auth/timeout/error.
+Provider fallback ketika TTS utama gagal. Default: `none`, supaya TTS hanya memakai OpenAI sesuai mode hemat saat ini.
 
 #### `OPENAI_TTS_MODEL`
 
@@ -1023,11 +1025,19 @@ Voice OpenAI TTS. Default: `onyx` untuk karakter pria yang lebih tegas.
 
 #### `OPENAI_TTS_SPEED`
 
-Kecepatan OpenAI TTS. Default: `1.12`, dibuat agak cepat tapi masih jelas untuk Bahasa Indonesia.
+Kecepatan OpenAI TTS. Default: `1.35`, dibuat cepat tapi masih jelas untuk Bahasa Indonesia.
 
 #### `OPENAI_TTS_INSTRUCTIONS`
 
-Instruksi gaya bicara OpenAI TTS. Default memaksa Bahasa Indonesia natural, pria dewasa Indonesia, jelas, tegas, dan tanpa aksen Inggris.
+Instruksi gaya bicara OpenAI TTS. Default memaksa Bahasa Indonesia natural, pria dewasa Indonesia, jelas, tegas, cepat, dan tanpa aksen Inggris.
+
+#### `THUMBNAIL_TTS_STRIP_PUNCTUATION`
+
+Menghapus titik, koma, tanda tanya, tanda seru, titik dua, dan titik koma dari teks TTS agar suara membaca lebih cepat. Default: `true`.
+
+#### `THUMBNAIL_TTS_MAX_CHARS`
+
+Batas karakter teks TTS dari judul thumbnail. Default: `90`, supaya biaya dan durasi tetap kecil.
 
 #### `DEEPGRAM_TTS_MODEL`
 

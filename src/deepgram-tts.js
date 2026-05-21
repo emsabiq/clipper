@@ -2,21 +2,21 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { config } from "./config.js";
 
-const DEFAULT_TTS_PROVIDER = "deepgram";
+const DEFAULT_TTS_PROVIDER = "openai";
 const DEFAULT_DEEPGRAM_TTS_MODEL = "aura-2-apollo-en";
 const DEFAULT_DEEPGRAM_TTS_SPEED = 1.5;
 const DEFAULT_OPENAI_TTS_MODEL = "gpt-4o-mini-tts";
 const DEFAULT_OPENAI_TTS_VOICE = "onyx";
-const DEFAULT_OPENAI_TTS_SPEED = 1.12;
+const DEFAULT_OPENAI_TTS_SPEED = 1.35;
 const DEFAULT_TTS_VOLUME = 1.45;
 const DEFAULT_TTS_TIMEOUT_MS = 45000;
 const MAX_DEEPGRAM_TTS_CHARS = 2000;
 const MAX_OPENAI_TTS_CHARS = 4096;
 const DEFAULT_OPENAI_TTS_INSTRUCTIONS = [
   "Bicara sepenuhnya dalam Bahasa Indonesia.",
-  "Gunakan pelafalan Indonesia natural seperti pria dewasa Indonesia, jelas, tegas, percaya diri, dan sedikit cepat.",
+  "Gunakan pelafalan Indonesia natural seperti pria dewasa Indonesia, jelas, tegas, percaya diri, dan cepat.",
   "Jangan memakai aksen Inggris atau intonasi bule.",
-  "Tempo agak cepat, artikulasi tetap jelas, cocok untuk pembuka video pendek."
+  "Baca tanpa jeda dramatis, tanpa menyuarakan tanda baca, dan cocok untuk pembuka video pendek."
 ].join(" ");
 const INDONESIAN_NUMBER_WORDS = [
   "nol",
@@ -115,7 +115,7 @@ export function deepgramTtsConfig() {
   const openaiSpeed = clampNumber(numberEnv("OPENAI_TTS_SPEED", numberEnv("THUMBNAIL_TTS_SPEED", DEFAULT_OPENAI_TTS_SPEED)), 0.25, 4);
   const deepgramModel = cleanText(process.env.DEEPGRAM_TTS_MODEL || DEFAULT_DEEPGRAM_TTS_MODEL);
   const deepgramSpeed = clampNumber(numberEnv("DEEPGRAM_TTS_SPEED", DEFAULT_DEEPGRAM_TTS_SPEED), 0.7, 1.5);
-  const fallbackProvider = cleanText(process.env.THUMBNAIL_TTS_FALLBACK_PROVIDER || (provider === "deepgram" ? "openai" : "")).toLowerCase();
+  const fallbackProvider = cleanText(process.env.THUMBNAIL_TTS_FALLBACK_PROVIDER || "").toLowerCase();
   return {
     enabled: boolEnv("THUMBNAIL_TTS_ENABLED", true),
     provider,
@@ -131,6 +131,7 @@ export function deepgramTtsConfig() {
     bitRate: cleanText(process.env.DEEPGRAM_TTS_BIT_RATE || ""),
     mipOptOut: boolEnv("DEEPGRAM_TTS_MIP_OPT_OUT", false),
     textPrefix: cleanText(firstEnv(["THUMBNAIL_TTS_TEXT_PREFIX"], "")),
+    stripPunctuation: boolEnv("THUMBNAIL_TTS_STRIP_PUNCTUATION", provider === "openai"),
     accentProfile: cleanText(process.env.DEEPGRAM_TTS_ACCENT_PROFILE || "id").toLowerCase(),
     pronunciationEnabled: boolEnv("DEEPGRAM_TTS_PRONUNCIATION_ENABLED", true),
     volume: clampNumber(numberEnv("THUMBNAIL_TTS_VOLUME", numberEnv("DEEPGRAM_TTS_VOLUME", DEFAULT_TTS_VOLUME)), 0.5, 2.2),
@@ -143,7 +144,7 @@ export function deepgramTtsConfig() {
     openaiTimeoutMs: Math.max(5000, numberEnv("OPENAI_TTS_TIMEOUT_SECONDS", DEFAULT_TTS_TIMEOUT_MS / 1000) * 1000),
     deepgramModel,
     deepgramSpeed,
-    maxChars: Math.min(MAX_DEEPGRAM_TTS_CHARS, Math.max(20, numberEnv("THUMBNAIL_TTS_MAX_CHARS", 220)))
+    maxChars: Math.min(MAX_DEEPGRAM_TTS_CHARS, Math.max(20, numberEnv("THUMBNAIL_TTS_MAX_CHARS", 90)))
   };
 }
 
@@ -170,8 +171,12 @@ export function buildThumbnailSpeechText(value, options = {}) {
   if ((options.accentProfile || settings.accentProfile) === "id") {
     text = applyIndonesianAccentHints(text);
   }
-  text = text.replace(/\?{2,}/g, "?").replace(/!{2,}/g, "!");
-  if (!/[.!?]$/.test(text)) text += ".";
+  if (settings.stripPunctuation) {
+    text = stripSpeechPunctuation(text);
+  } else {
+    text = text.replace(/\?{2,}/g, "?").replace(/!{2,}/g, "!");
+    if (!/[.!?]$/.test(text)) text += ".";
+  }
   if (settings.provider === "deepgram" && settings.pronunciationEnabled && (options.accentProfile || settings.accentProfile) === "id") {
     text = applyIndonesianPronunciationControls(text);
   }
@@ -208,6 +213,13 @@ function truncateSpeechText(value, maxChars) {
   if (text.length <= maxChars) return text;
   const sliced = text.slice(0, maxChars);
   return sliced.replace(/\s+\S*$/, "").trim() || sliced.trim();
+}
+
+function stripSpeechPunctuation(value) {
+  return cleanText(String(value || "")
+    .replace(/[.,!?;:]+/g, " ")
+    .replace(/[()[\]{}<>]+/g, " ")
+    .replace(/\s+/g, " "));
 }
 
 function applyIndonesianPronunciationControls(value) {

@@ -308,12 +308,14 @@ jobs:
       THUMBNAIL_TTS_PAD_SECONDS: ${{ secrets.THUMBNAIL_TTS_PAD_SECONDS || '0' }}
       THUMBNAIL_TTS_MAX_SECONDS: ${{ secrets.THUMBNAIL_TTS_MAX_SECONDS || '12' }}
       THUMBNAIL_TTS_TEXT_PREFIX: ${{ secrets.THUMBNAIL_TTS_TEXT_PREFIX || '' }}
-      THUMBNAIL_TTS_PROVIDER: ${{ vars.THUMBNAIL_TTS_PROVIDER || secrets.THUMBNAIL_TTS_PROVIDER || 'deepgram' }}
-      THUMBNAIL_TTS_FALLBACK_PROVIDER: ${{ vars.THUMBNAIL_TTS_FALLBACK_PROVIDER || secrets.THUMBNAIL_TTS_FALLBACK_PROVIDER || 'openai' }}
+      THUMBNAIL_TTS_PROVIDER: ${{ vars.THUMBNAIL_TTS_PROVIDER || secrets.THUMBNAIL_TTS_PROVIDER || 'openai' }}
+      THUMBNAIL_TTS_FALLBACK_PROVIDER: ${{ vars.THUMBNAIL_TTS_FALLBACK_PROVIDER || secrets.THUMBNAIL_TTS_FALLBACK_PROVIDER || 'none' }}
       OPENAI_TTS_MODEL: ${{ secrets.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts' }}
       OPENAI_TTS_VOICE: ${{ vars.OPENAI_TTS_VOICE || secrets.OPENAI_TTS_VOICE || 'onyx' }}
-      OPENAI_TTS_SPEED: ${{ secrets.OPENAI_TTS_SPEED || '1.12' }}
-      OPENAI_TTS_INSTRUCTIONS: ${{ vars.OPENAI_TTS_INSTRUCTIONS || secrets.OPENAI_TTS_INSTRUCTIONS || 'Bicara sepenuhnya dalam Bahasa Indonesia. Gunakan pelafalan Indonesia natural seperti pria dewasa Indonesia, jelas, tegas, percaya diri, dan sedikit cepat. Jangan memakai aksen Inggris atau intonasi bule. Cocok untuk pembuka video pendek.' }}
+      OPENAI_TTS_SPEED: ${{ vars.OPENAI_TTS_SPEED || secrets.OPENAI_TTS_SPEED || '1.35' }}
+      OPENAI_TTS_INSTRUCTIONS: ${{ vars.OPENAI_TTS_INSTRUCTIONS || secrets.OPENAI_TTS_INSTRUCTIONS || 'Bicara sepenuhnya dalam Bahasa Indonesia. Gunakan pelafalan Indonesia natural seperti pria dewasa Indonesia, jelas, tegas, percaya diri, dan cepat. Jangan memakai aksen Inggris atau intonasi bule. Baca tanpa jeda dramatis, tanpa menyuarakan tanda baca, dan cocok untuk pembuka video pendek.' }}
+      THUMBNAIL_TTS_STRIP_PUNCTUATION: ${{ vars.THUMBNAIL_TTS_STRIP_PUNCTUATION || secrets.THUMBNAIL_TTS_STRIP_PUNCTUATION || 'true' }}
+      THUMBNAIL_TTS_MAX_CHARS: ${{ vars.THUMBNAIL_TTS_MAX_CHARS || secrets.THUMBNAIL_TTS_MAX_CHARS || '90' }}
       DEEPGRAM_TTS_API_KEYS: ${{ secrets.DEEPGRAM_TTS_API_KEYS || secrets.DEEPGRAM_API_KEYS }}
       DEEPGRAM_TTS_MODEL: ${{ vars.DEEPGRAM_TTS_MODEL || secrets.DEEPGRAM_TTS_MODEL || 'aura-2-apollo-en' }}
       DEEPGRAM_TTS_SPEED: ${{ vars.DEEPGRAM_TTS_SPEED || secrets.DEEPGRAM_TTS_SPEED || '1.5' }}

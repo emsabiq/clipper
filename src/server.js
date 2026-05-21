@@ -234,6 +234,8 @@ const envGroups = [
       field("OPENAI_TTS_VOICE", "OpenAI TTS voice"),
       field("OPENAI_TTS_SPEED", "OpenAI TTS speed"),
       field("OPENAI_TTS_INSTRUCTIONS", "OpenAI TTS instructions"),
+      field("THUMBNAIL_TTS_STRIP_PUNCTUATION", "TTS strip punctuation"),
+      field("THUMBNAIL_TTS_MAX_CHARS", "TTS max chars"),
       field("DEEPGRAM_TTS_API_KEYS", "Deepgram TTS keys", true),
       field("DEEPGRAM_TTS_MODEL", "Deepgram TTS model"),
       field("DEEPGRAM_TTS_SPEED", "Deepgram TTS speed"),
