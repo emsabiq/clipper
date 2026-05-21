@@ -3,6 +3,7 @@ import path from "node:path";
 import { config } from "./config.js";
 import { appendHistory } from "./history.js";
 import { publishReel } from "./instagram.js";
+import { publishToFacebook } from "./facebook.js";
 import { appendLog } from "./logger.js";
 import { patchItem, readJson, writeJson } from "./storage.js";
 import { downloadStateFromRemote, uploadStateToRemote } from "./state-sync.js";
@@ -26,13 +27,15 @@ function latestReadyJob(jobs, selectedPlatforms = enabledPublishPlatformsFromCon
     "publish_failed",
     "failed_publish",
     "published_with_warnings",
-    "quota_exceeded"
+    "quota_exceeded",
+    "published"
   ]);
 
   return jobs
     .filter((job) => {
       const needsPlatform = [
         selectedPlatforms.youtube && !job.youtube_url && !job.youtube_video_id,
+        selectedPlatforms.facebook && !job.facebook_video_id && !job.facebook_post_id,
         selectedPlatforms.instagram && !job.instagram_media_id,
         selectedPlatforms.tiktok && !job.tiktok_publish_id,
         selectedPlatforms.threads && !job.threads_media_id
@@ -229,6 +232,12 @@ let instagram = job.instagram_media_id ? {
   mediaId: job.instagram_media_id,
   skipped: true
 } : null;
+let facebook = (job.facebook_video_id || job.facebook_post_id || job.facebook_url) ? {
+  videoId: job.facebook_video_id || "",
+  postId: job.facebook_post_id || "",
+  url: job.facebook_url || "",
+  skipped: true
+} : null;
 let tiktok = job.tiktok_publish_id ? {
   publishId: job.tiktok_publish_id,
   mode: job.tiktok_mode || "",
@@ -344,6 +353,20 @@ try {
     if (publishedInstagram) instagram = publishedInstagram;
   }
 
+  if (publishDecision.platforms.facebook && !facebook) {
+    const publishedFacebook = await publishReadyPlatform("facebook", job.job_id, platformErrors, quotaExceeded, async () => {
+      if (!job.public_video_url) throw new Error("public_video_url kosong, Facebook butuh URL video publik dari remote storage.");
+      return publishToFacebook({
+        videoUrl: job.public_video_url,
+        videoPath,
+        title: job.source_title || "Podcast Clip",
+        description: socialCaption,
+        thumbnailPath
+      });
+    });
+    if (publishedFacebook) facebook = publishedFacebook;
+  }
+
   if (publishDecision.platforms.tiktok && !tiktok) {
     const publishedTikTok = await publishReadyPlatform("tiktok", job.job_id, platformErrors, quotaExceeded, async () => {
       if (!job.public_video_url) throw new Error("public_video_url kosong, TikTok butuh URL video publik dari remote storage.");
@@ -380,6 +403,15 @@ try {
           error: platformErrors.instagram
         }),
         instagram_error: platformErrors.instagram || "",
+        facebook_status: readyPlatformStatus({
+          result: facebook,
+          enabled: publishDecision.platforms.facebook,
+          error: platformErrors.facebook
+        }),
+        facebook_video_id: facebook?.videoId || "",
+        facebook_post_id: facebook?.postId || "",
+        facebook_url: facebook?.url || "",
+        facebook_error: platformErrors.facebook || "",
         tiktok_status: readyPlatformStatus({
           result: tiktok,
           enabled: publishDecision.platforms.tiktok,
@@ -435,6 +467,15 @@ try {
     }),
     instagram_media_id: instagram?.mediaId || "",
     instagram_error: platformErrors.instagram || "",
+    facebook_status: readyPlatformStatus({
+      result: facebook,
+      enabled: publishDecision.platforms.facebook,
+      error: platformErrors.facebook
+    }),
+    facebook_video_id: facebook?.videoId || "",
+    facebook_post_id: facebook?.postId || "",
+    facebook_url: facebook?.url || "",
+    facebook_error: platformErrors.facebook || "",
     tiktok_status: readyPlatformStatus({
       result: tiktok,
       enabled: publishDecision.platforms.tiktok,
@@ -460,6 +501,8 @@ try {
     youtube_video_id: youtube?.videoId || job.youtube_video_id,
     youtube_url: youtube?.url || job.youtube_url,
     instagram_media_id: instagram?.mediaId || job.instagram_media_id,
+    facebook_video_id: facebook?.videoId || job.facebook_video_id,
+    facebook_url: facebook?.url || job.facebook_url,
     tiktok_publish_id: tiktok?.publishId || job.tiktok_publish_id,
     threads_media_id: threads?.mediaId || job.threads_media_id,
     threads_url: threads?.url || job.threads_url
@@ -476,6 +519,9 @@ try {
     public_thumbnail_url: job.public_thumbnail_url || "",
     caption: socialCaption,
     instagram_media_id: instagram?.mediaId || "",
+    facebook_video_id: facebook?.videoId || "",
+    facebook_post_id: facebook?.postId || "",
+    facebook_url: facebook?.url || "",
     tiktok_publish_id: tiktok?.publishId || "",
     tiktok_mode: tiktok?.mode || "",
     youtube_video_id: youtube?.videoId || "",
@@ -487,6 +533,9 @@ try {
   await appendLog(hasPlatformErrors ? "platform_published_with_warnings" : "platform_published", {
     job_id: job.job_id,
     instagram_media_id: instagram?.mediaId || "",
+    facebook_video_id: facebook?.videoId || "",
+    facebook_post_id: facebook?.postId || "",
+    facebook_url: facebook?.url || "",
     tiktok_publish_id: tiktok?.publishId || "",
     youtube_video_id: youtube?.videoId || "",
     youtube_url: youtube?.url || "",
@@ -498,6 +547,7 @@ try {
     status: hasPlatformErrors ? "published_with_warnings" : "published",
     job_id: job.job_id,
     instagram,
+    facebook,
     tiktok,
     youtube,
     threads,
@@ -505,6 +555,7 @@ try {
   }, null, 2));
 } catch (error) {
   const hasYoutube = Boolean(youtube?.url || youtube?.videoId || job.youtube_url || job.youtube_video_id);
+  const hasFacebook = Boolean(facebook?.videoId || facebook?.postId || facebook?.url || job.facebook_video_id || job.facebook_post_id || job.facebook_url);
   const hasTikTok = Boolean(tiktok?.publishId || job.tiktok_publish_id);
   const hasThreads = Boolean(threads?.mediaId || job.threads_media_id);
   if (isYoutubeQuotaError(error)) {
@@ -535,6 +586,10 @@ try {
     youtube_video_id: youtube?.videoId || job.youtube_video_id || "",
     youtube_url: youtube?.url || job.youtube_url || "",
     instagram_status: publishDecision.platforms.instagram ? "failed" : job.instagram_status,
+    facebook_status: hasFacebook ? "published" : publishDecision.platforms.facebook ? "failed" : job.facebook_status,
+    facebook_video_id: facebook?.videoId || job.facebook_video_id || "",
+    facebook_post_id: facebook?.postId || job.facebook_post_id || "",
+    facebook_url: facebook?.url || job.facebook_url || "",
     tiktok_status: hasTikTok ? "submitted" : publishDecision.platforms.tiktok ? "failed" : job.tiktok_status,
     tiktok_publish_id: tiktok?.publishId || job.tiktok_publish_id || "",
     threads_status: hasThreads ? "published" : publishDecision.platforms.threads ? "failed" : job.threads_status,
@@ -554,6 +609,7 @@ try {
     platformResults: {
       youtube,
       instagram,
+      facebook,
       tiktok,
       threads,
       errors: platformErrors,
