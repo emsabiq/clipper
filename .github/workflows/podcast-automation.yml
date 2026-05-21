@@ -91,6 +91,10 @@ on:
         description: "AI teks dikunci ke OpenAI; input lama diabaikan"
         required: false
         default: "openai"
+      safe_publish_mode:
+        description: "Safe publish mode: all, youtube_only, social_only, none"
+        required: false
+        default: "all"
   schedule:
     # GitHub schedule uses UTC.
     # Target 15 video/hari, disebar dari pagi sampai malam WIB.
@@ -138,6 +142,7 @@ jobs:
       REMOTE_UPLOAD_REQUIRED: ${{ secrets.REMOTE_UPLOAD_REQUIRED || 'false' }}
       DRY_RUN: "false"
       AUTO_PUBLISH: "true"
+      SAFE_PUBLISH_MODE: ${{ github.event.inputs.safe_publish_mode || secrets.SAFE_PUBLISH_MODE || 'all' }}
       DEFAULT_THEME: auto
 
       GRAPH_API_VERSION: v25.0
