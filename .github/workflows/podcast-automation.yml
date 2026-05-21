@@ -324,17 +324,17 @@ jobs:
       THUMBNAIL_TTS_PROVIDER: ${{ vars.THUMBNAIL_TTS_PROVIDER || secrets.THUMBNAIL_TTS_PROVIDER || 'openai' }}
       THUMBNAIL_TTS_FALLBACK_PROVIDER: ${{ vars.THUMBNAIL_TTS_FALLBACK_PROVIDER || secrets.THUMBNAIL_TTS_FALLBACK_PROVIDER || 'none' }}
       OPENAI_TTS_MODEL: ${{ secrets.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts' }}
-      OPENAI_TTS_VOICE: ${{ vars.OPENAI_TTS_VOICE || secrets.OPENAI_TTS_VOICE || 'onyx' }}
+      OPENAI_TTS_VOICE: ${{ vars.OPENAI_TTS_VOICE || secrets.OPENAI_TTS_VOICE || 'nova' }}
       OPENAI_TTS_SPEED: ${{ vars.OPENAI_TTS_SPEED || secrets.OPENAI_TTS_SPEED || '1.35' }}
-      OPENAI_TTS_INSTRUCTIONS: ${{ vars.OPENAI_TTS_INSTRUCTIONS || secrets.OPENAI_TTS_INSTRUCTIONS || 'Bicara sepenuhnya dalam Bahasa Indonesia. Gunakan pelafalan Indonesia natural seperti pria dewasa Indonesia, jelas, tegas, percaya diri, dan cepat. Jangan memakai aksen Inggris atau intonasi bule. Baca tanpa jeda dramatis, tanpa menyuarakan tanda baca, dan cocok untuk pembuka video pendek.' }}
+      OPENAI_TTS_INSTRUCTIONS: ${{ vars.OPENAI_TTS_INSTRUCTIONS || secrets.OPENAI_TTS_INSTRUCTIONS || 'Bicara sepenuhnya dalam Bahasa Indonesia. Gunakan pelafalan Indonesia natural seperti wanita dewasa Indonesia, jelas, tegas, percaya diri, dan cepat. Jangan memakai aksen Inggris atau intonasi bule. Baca tanpa jeda dramatis, tanpa menyuarakan tanda baca, dan cocok untuk pembuka video pendek.' }}
       THUMBNAIL_TTS_STRIP_PUNCTUATION: ${{ vars.THUMBNAIL_TTS_STRIP_PUNCTUATION || secrets.THUMBNAIL_TTS_STRIP_PUNCTUATION || 'true' }}
       THUMBNAIL_TTS_MAX_CHARS: ${{ vars.THUMBNAIL_TTS_MAX_CHARS || secrets.THUMBNAIL_TTS_MAX_CHARS || '90' }}
       DEEPGRAM_TTS_API_KEYS: ${{ secrets.DEEPGRAM_TTS_API_KEYS || secrets.DEEPGRAM_API_KEYS }}
-      DEEPGRAM_TTS_MODEL: ${{ vars.DEEPGRAM_TTS_MODEL || secrets.DEEPGRAM_TTS_MODEL || 'aura-2-apollo-en' }}
+      DEEPGRAM_TTS_MODEL: ${{ vars.DEEPGRAM_TTS_MODEL || secrets.DEEPGRAM_TTS_MODEL || 'aura-2-amalthea-en' }}
       DEEPGRAM_TTS_SPEED: ${{ vars.DEEPGRAM_TTS_SPEED || secrets.DEEPGRAM_TTS_SPEED || '1.5' }}
       DEEPGRAM_TTS_ACCENT_PROFILE: ${{ vars.DEEPGRAM_TTS_ACCENT_PROFILE || secrets.DEEPGRAM_TTS_ACCENT_PROFILE || 'id' }}
       DEEPGRAM_TTS_PRONUNCIATION_ENABLED: ${{ vars.DEEPGRAM_TTS_PRONUNCIATION_ENABLED || secrets.DEEPGRAM_TTS_PRONUNCIATION_ENABLED || 'true' }}
-      THUMBNAIL_TTS_VOLUME: ${{ secrets.THUMBNAIL_TTS_VOLUME || '1.45' }}
+      THUMBNAIL_TTS_VOLUME: ${{ secrets.THUMBNAIL_TTS_VOLUME || '1.85' }}
       DEEPGRAM_TTS_TIMEOUT_SECONDS: ${{ secrets.DEEPGRAM_TTS_TIMEOUT_SECONDS || '45' }}
       THUMBNAIL_TRANSITION_ENABLED: ${{ vars.THUMBNAIL_TRANSITION_ENABLED || secrets.THUMBNAIL_TRANSITION_ENABLED || 'true' }}
       THUMBNAIL_TRANSITION_ASSET: ${{ vars.THUMBNAIL_TRANSITION_ASSET || secrets.THUMBNAIL_TRANSITION_ASSET || 'assets/branding/transisi-thumbnail-to-content.mp4' }}

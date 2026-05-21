@@ -26,6 +26,7 @@ let dashboardPin =
 let authVisible = true;
 let pollTimer = null;
 let lastRunStatus = "idle";
+let latestActiveRun = null;
 let cachedVideos = [];
 let cachedJobs = [];
 let latestVideoJob = null;
@@ -69,6 +70,7 @@ const els = {
   workflowMeta: document.querySelector("#workflowMeta"),
   workflowGraph: document.querySelector("#workflowGraph"),
   runBadge: document.querySelector("#runBadge"),
+  runTimer: document.querySelector("#runTimer"),
   runLink: document.querySelector("#runLink"),
   runStatus: document.querySelector("#runStatus"),
   runDetail: document.querySelector("#runDetail"),
@@ -315,6 +317,7 @@ function metricCard(label, value, tone, detail) {
 
 function renderRun(state, stats) {
   const run = state.activeRun;
+  latestActiveRun = run || null;
   setSubmittersDisabled(run?.status === "running");
 
   if (!run) {
@@ -325,6 +328,7 @@ function renderRun(state, stats) {
     els.runStatus.textContent = "Idle";
     els.runDetail.textContent = "Siap menerima link YouTube atau menjalankan queue.";
     els.runProgressLabel.textContent = "0%";
+    if (els.runTimer) els.runTimer.textContent = "00:00";
     els.progressBar.style.width = "0%";
     els.progressBar.classList.remove("running");
     els.runLink.hidden = true;
@@ -347,6 +351,7 @@ function renderRun(state, stats) {
   els.progressBar.classList.toggle("running", status === "running");
   els.runLink.href = run.htmlUrl || "#";
   els.runLink.hidden = !run.htmlUrl;
+  updateRunTimer();
   renderWorkflow(run.jobs?.length ? buildLiveSteps(run.jobs) : buildPipelineSteps(state));
 }
 
@@ -571,7 +576,7 @@ function renderTtsConfig(cfg) {
   const enabled = cfg.thumbnailTtsEnabled !== false;
   const provider = cfg.thumbnailTtsProvider || "deepgram";
   const speed = cfg.thumbnailTtsSpeed || (provider === "openai" ? "1.12" : "1.5");
-  const volume = cfg.thumbnailTtsVolume || "1.45";
+  const volume = cfg.thumbnailTtsVolume || "1.85";
   const accent = cfg.thumbnailTtsAccentProfile || "id";
   const ipa = provider === "deepgram" && cfg.thumbnailTtsPronunciationEnabled !== false ? " IPA" : "";
   const voice = cfg.thumbnailTtsVoice ? ` / ${cfg.thumbnailTtsVoice}` : "";
@@ -894,6 +899,7 @@ function startClock() {
       minute: "2-digit",
       second: "2-digit"
     });
+    updateRunTimer();
   };
   tick();
   window.setInterval(tick, 1000);
@@ -1019,7 +1025,7 @@ els.ttsTestBtn?.addEventListener("click", async () => {
     const voice = result.voice ? ` / ${result.voice}` : "";
     const key = result.keyIndex ? ` / key ${result.keyIndex}` : "";
     const speed = result.speed || (provider === "deepgram" ? "1.5" : "1.12");
-    els.ttsStatus.textContent = `${provider}${fallback} / ${result.model || "TTS"}${voice}${key} / ${speed}x / vol ${result.volume || "1.45"}x / ${result.charCount || text.length} karakter`;
+    els.ttsStatus.textContent = `${provider}${fallback} / ${result.model || "TTS"}${voice}${key} / ${speed}x / vol ${result.volume || "1.85"}x / ${result.charCount || text.length} karakter`;
     await playAudioWithTtsGain(els.ttsAudio, result.volume).catch(() => {});
   } catch (error) {
     handleApiError(error, els.ttsStatus);
@@ -1099,7 +1105,7 @@ async function playIntroVideoPreview(button) {
       const voice = result.voice ? ` / ${result.voice}` : "";
       const key = result.keyIndex ? ` / key ${result.keyIndex}` : "";
       const speed = result.speed || (provider === "deepgram" ? "1.5" : "1.12");
-      status.textContent = `${provider}${fallback} / ${result.model || "TTS"}${voice}${key} / ${speed}x / vol ${result.volume || "1.45"}x`;
+      status.textContent = `${provider}${fallback} / ${result.model || "TTS"}${voice}${key} / ${speed}x / vol ${result.volume || "1.85"}x`;
     }
 
     await new Promise((resolve, reject) => {
@@ -1155,7 +1161,7 @@ async function playAudioWithTtsGain(audio, value) {
 
 function normalizeTtsGain(value) {
   const number = Number(value);
-  if (!Number.isFinite(number) || number <= 0) return 1.45;
+  if (!Number.isFinite(number) || number <= 0) return 1.85;
   return Math.min(2.2, Math.max(0.5, number));
 }
 
@@ -1424,6 +1430,30 @@ function labelDate(date) {
 
 function durationSeconds(start, end) {
   return Math.max(0, Math.round((new Date(end) - new Date(start)) / 1000));
+}
+
+function updateRunTimer() {
+  if (!els.runTimer) return;
+  const run = latestActiveRun;
+  if (!run?.startedAt) {
+    els.runTimer.textContent = "00:00";
+    els.runTimer.title = "Belum ada proses aktif";
+    return;
+  }
+  const end = run.status === "running" ? new Date().toISOString() : run.finishedAt || new Date().toISOString();
+  const seconds = durationSeconds(run.startedAt, end);
+  els.runTimer.textContent = formatDurationClock(seconds);
+  els.runTimer.title = run.status === "running" ? "Durasi proses berjalan" : "Total durasi proses terakhir";
+}
+
+function formatDurationClock(totalSeconds) {
+  const seconds = Math.max(0, Number(totalSeconds) || 0);
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const rest = seconds % 60;
+  const mm = String(minutes).padStart(2, "0");
+  const ss = String(rest).padStart(2, "0");
+  return hours ? `${String(hours).padStart(2, "0")}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
 function formatTime(value) {

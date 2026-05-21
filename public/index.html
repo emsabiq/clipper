@@ -121,6 +121,7 @@
             </div>
             <div class="runTools">
               <span id="runBadge" class="runBadge idle">Idle</span>
+              <span id="runTimer" class="runTimer">00:00</span>
               <a id="runLink" class="btn ghost small" href="#" target="_blank" rel="noreferrer" hidden>Console</a>
             </div>
           </div>
@@ -382,6 +383,11 @@
             <span>Judul thumbnail</span>
             <input id="ttsText" maxlength="220" value="Bagian ini bikin semua orang ikut mikir">
           </label>
+          <div class="ttsVoiceCard">
+            <span>Voice Profile</span>
+            <strong>Female boosted</strong>
+            <small>Default OpenAI voice: nova / volume naik</small>
+          </div>
           <button id="ttsTestBtn" class="btn primary" type="button">Uji Suara</button>
           <audio id="ttsAudio" controls hidden></audio>
           <p id="ttsStatus" class="subtle">Siap diuji.</p>

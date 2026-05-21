@@ -187,7 +187,7 @@ export function configSummary() {
       : process.env.DEEPGRAM_TTS_SPEED || 1.5),
     thumbnailTtsAccentProfile: clean(process.env.DEEPGRAM_TTS_ACCENT_PROFILE || "id"),
     thumbnailTtsPronunciationEnabled: boolEnv("DEEPGRAM_TTS_PRONUNCIATION_ENABLED", true),
-    thumbnailTtsVolume: Number(process.env.THUMBNAIL_TTS_VOLUME || process.env.DEEPGRAM_TTS_VOLUME || 1.45),
+    thumbnailTtsVolume: Number(process.env.THUMBNAIL_TTS_VOLUME || process.env.DEEPGRAM_TTS_VOLUME || 1.85),
     videoFrameEnabled: boolEnv("VIDEO_FRAME_ENABLED", true),
     videoFilterEnabled: boolEnv("VIDEO_FILTER_ENABLED", true),
     videoWatermarkEnabled: boolEnv("VIDEO_WATERMARK_ENABLED", true),

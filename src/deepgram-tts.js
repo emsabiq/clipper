@@ -3,18 +3,18 @@ import path from "node:path";
 import { config } from "./config.js";
 
 const DEFAULT_TTS_PROVIDER = "openai";
-const DEFAULT_DEEPGRAM_TTS_MODEL = "aura-2-apollo-en";
+const DEFAULT_DEEPGRAM_TTS_MODEL = "aura-2-amalthea-en";
 const DEFAULT_DEEPGRAM_TTS_SPEED = 1.5;
 const DEFAULT_OPENAI_TTS_MODEL = "gpt-4o-mini-tts";
-const DEFAULT_OPENAI_TTS_VOICE = "onyx";
+const DEFAULT_OPENAI_TTS_VOICE = "nova";
 const DEFAULT_OPENAI_TTS_SPEED = 1.35;
-const DEFAULT_TTS_VOLUME = 1.45;
+const DEFAULT_TTS_VOLUME = 1.85;
 const DEFAULT_TTS_TIMEOUT_MS = 45000;
 const MAX_DEEPGRAM_TTS_CHARS = 2000;
 const MAX_OPENAI_TTS_CHARS = 4096;
 const DEFAULT_OPENAI_TTS_INSTRUCTIONS = [
   "Bicara sepenuhnya dalam Bahasa Indonesia.",
-  "Gunakan pelafalan Indonesia natural seperti pria dewasa Indonesia, jelas, tegas, percaya diri, dan cepat.",
+  "Gunakan pelafalan Indonesia natural seperti wanita dewasa Indonesia, jelas, tegas, percaya diri, dan cepat.",
   "Jangan memakai aksen Inggris atau intonasi bule.",
   "Baca tanpa jeda dramatis, tanpa menyuarakan tanda baca, dan cocok untuk pembuka video pendek."
 ].join(" ");

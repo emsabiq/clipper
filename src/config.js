@@ -213,13 +213,13 @@ function buildConfig() {
         enabled: boolEnv("THUMBNAIL_TTS_ENABLED", true),
         provider: cleanText(process.env.THUMBNAIL_TTS_PROVIDER || "openai"),
         openaiModel: cleanText(process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts"),
-        openaiVoice: cleanText(process.env.OPENAI_TTS_VOICE || "onyx"),
+        openaiVoice: cleanText(process.env.OPENAI_TTS_VOICE || "nova"),
         openaiSpeed: numberEnv("OPENAI_TTS_SPEED", numberEnv("THUMBNAIL_TTS_SPEED", 1.35)),
-        model: cleanText(process.env.DEEPGRAM_TTS_MODEL || "aura-2-apollo-en"),
+        model: cleanText(process.env.DEEPGRAM_TTS_MODEL || "aura-2-amalthea-en"),
         speed: numberEnv("DEEPGRAM_TTS_SPEED", 1.5),
         accentProfile: cleanText(process.env.DEEPGRAM_TTS_ACCENT_PROFILE || "id"),
         pronunciationEnabled: boolEnv("DEEPGRAM_TTS_PRONUNCIATION_ENABLED", true),
-        volume: numberEnv("THUMBNAIL_TTS_VOLUME", numberEnv("DEEPGRAM_TTS_VOLUME", 1.45))
+        volume: numberEnv("THUMBNAIL_TTS_VOLUME", numberEnv("DEEPGRAM_TTS_VOLUME", 1.85))
       }
     },
     ftp: {

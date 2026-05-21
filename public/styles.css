@@ -1698,3 +1698,516 @@ body {
     max-width: none;
   }
 }
+
+/* Prism operations refresh */
+:root {
+  --bg: #05070b;
+  --bg-2: #0d1118;
+  --panel: rgba(9, 13, 20, 0.9);
+  --panel-2: rgba(15, 21, 31, 0.93);
+  --panel-3: rgba(21, 28, 40, 0.94);
+  --line: rgba(236, 245, 255, 0.1);
+  --line-2: rgba(236, 245, 255, 0.2);
+  --text: #f8fbff;
+  --muted: #aab8c8;
+  --faint: #68788e;
+  --teal: #12e6d1;
+  --blue: #4a8cff;
+  --lime: #b8f45d;
+  --amber: #ffbd4a;
+  --rose: #ff4f7b;
+  --violet: #d06bff;
+  --teal-soft: rgba(18, 230, 209, 0.14);
+  --blue-soft: rgba(74, 140, 255, 0.14);
+  --lime-soft: rgba(184, 244, 93, 0.12);
+  --amber-soft: rgba(255, 189, 74, 0.14);
+  --rose-soft: rgba(255, 79, 123, 0.14);
+  --shadow: 0 24px 80px rgba(0, 0, 0, 0.46);
+}
+
+body {
+  background:
+    linear-gradient(118deg, rgba(255, 79, 123, 0.13) 0 18%, transparent 18% 48%, rgba(18, 230, 209, 0.12) 48% 62%, transparent 62%),
+    linear-gradient(180deg, #090d13 0%, #05070b 45%, #07090d 100%);
+}
+
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+}
+
+body::before {
+  background:
+    repeating-linear-gradient(110deg, transparent 0 34px, rgba(255, 255, 255, 0.035) 34px 35px),
+    linear-gradient(140deg, transparent 0 56%, rgba(184, 244, 93, 0.08) 56% 60%, transparent 60%),
+    linear-gradient(25deg, rgba(74, 140, 255, 0.12), transparent 34%);
+  animation: prismShift 28s linear infinite;
+}
+
+body::after {
+  inset: 0 0 auto;
+  height: 9px;
+  background: linear-gradient(90deg, var(--rose), var(--amber), var(--lime), var(--teal), var(--blue), var(--violet));
+  box-shadow: 0 0 26px rgba(18, 230, 209, 0.35);
+}
+
+.bgLayer {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    repeating-linear-gradient(135deg, transparent 0 86px, rgba(255, 255, 255, 0.025) 86px 88px);
+  background-size: 36px 36px, 36px 36px, 100% 100%;
+  mask-image: linear-gradient(#000 0%, rgba(0, 0, 0, 0.82) 58%, transparent 100%);
+}
+
+.appShell {
+  width: min(1680px, calc(100% - 30px));
+  gap: 14px;
+  padding-top: 18px;
+}
+
+.panel,
+.metric {
+  position: relative;
+  border-color: rgba(236, 245, 255, 0.12);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.06), transparent 34%),
+    linear-gradient(180deg, rgba(15, 21, 31, 0.94), rgba(8, 12, 18, 0.92));
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.panel::before,
+.metric::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--rose), var(--amber), var(--teal));
+  opacity: 0.85;
+}
+
+.panelHead {
+  position: relative;
+}
+
+.kicker {
+  color: var(--amber);
+}
+
+.appHeader {
+  top: 14px;
+  padding: 13px 16px;
+  border-color: rgba(18, 230, 209, 0.24);
+  background:
+    linear-gradient(90deg, rgba(255, 79, 123, 0.08), transparent 34%, rgba(18, 230, 209, 0.08)),
+    rgba(7, 10, 16, 0.9);
+}
+
+.brandMark {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--rose), var(--amber) 34%, var(--teal) 68%, var(--blue));
+  color: #05070b;
+  box-shadow: 0 14px 32px rgba(18, 230, 209, 0.24);
+}
+
+.headerStatus {
+  justify-self: center;
+  min-width: min(560px, 100%);
+  padding: 9px 14px;
+  border: 1px solid rgba(236, 245, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.clock,
+.runTimer {
+  color: var(--lime);
+  font-family: var(--mono);
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, var(--rose), var(--amber) 45%, var(--lime));
+  color: #11070a;
+  box-shadow: 0 14px 30px rgba(255, 79, 123, 0.2);
+}
+
+.btn.ghost {
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.btn.ghost:hover {
+  border-color: rgba(255, 189, 74, 0.5);
+  background: rgba(255, 189, 74, 0.1);
+}
+
+.authOverlay {
+  background:
+    linear-gradient(120deg, rgba(255, 79, 123, 0.2) 0 22%, transparent 22% 54%, rgba(18, 230, 209, 0.16) 54% 68%, transparent 68%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 48px),
+    #05070b;
+}
+
+.loginPanel {
+  width: min(100%, 610px);
+  gap: 18px;
+  padding: 34px;
+  border-color: rgba(255, 189, 74, 0.28);
+  background:
+    linear-gradient(145deg, rgba(255, 79, 123, 0.13), transparent 34%),
+    linear-gradient(315deg, rgba(18, 230, 209, 0.14), transparent 40%),
+    rgba(8, 12, 18, 0.96);
+}
+
+.loginPanel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5px;
+  background: linear-gradient(90deg, var(--rose), var(--amber), var(--lime), var(--teal));
+}
+
+.loginBrand .brandMark {
+  width: 58px;
+  height: 58px;
+  font-size: 17px;
+}
+
+.loginBrand h1 {
+  font-size: 40px;
+}
+
+.loginBrand span:not(.brandMark) {
+  color: #d2dbe8;
+}
+
+.loginSignal {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.loginSignal span {
+  min-height: 72px;
+  justify-items: start;
+  padding: 13px;
+  border-color: rgba(236, 245, 255, 0.12);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent),
+    rgba(255, 255, 255, 0.035);
+  text-align: left;
+}
+
+.loginSignal span:nth-child(1) {
+  border-top-color: rgba(255, 79, 123, 0.5);
+}
+
+.loginSignal span:nth-child(2) {
+  border-top-color: rgba(255, 189, 74, 0.5);
+}
+
+.loginSignal span:nth-child(3) {
+  border-top-color: rgba(18, 230, 209, 0.5);
+}
+
+.loginField input,
+.field input,
+.field select,
+.field textarea,
+.miniInput,
+.miniSelect {
+  border-color: rgba(236, 245, 255, 0.14);
+  background: rgba(1, 5, 10, 0.58);
+  color: var(--text);
+}
+
+.loginField input:focus,
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+.miniInput:focus,
+.miniSelect:focus {
+  border-color: rgba(255, 189, 74, 0.72);
+  box-shadow: 0 0 0 3px rgba(255, 189, 74, 0.14);
+}
+
+.topOpsGrid {
+  grid-template-columns: minmax(0, 1.5fr) minmax(380px, 0.72fr);
+  gap: 14px;
+}
+
+.heroConsole {
+  min-height: 410px;
+  border-color: rgba(18, 230, 209, 0.22);
+  background:
+    linear-gradient(135deg, rgba(18, 230, 209, 0.09), transparent 28%),
+    linear-gradient(180deg, rgba(6, 10, 15, 0.98), rgba(3, 6, 10, 0.98));
+}
+
+.heroConsole #consoleOutput {
+  min-height: 320px;
+  border-color: rgba(18, 230, 209, 0.18);
+  background:
+    repeating-linear-gradient(0deg, transparent 0 25px, rgba(18, 230, 209, 0.045) 25px 26px),
+    linear-gradient(180deg, rgba(0, 5, 8, 0.96), rgba(4, 8, 13, 0.96));
+  color: #dcfff9;
+}
+
+.reliabilityPanel {
+  border-color: rgba(255, 189, 74, 0.18);
+}
+
+.reliabilityGrid article {
+  min-height: 116px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.08), transparent 50%),
+    rgba(255, 255, 255, 0.035);
+}
+
+.reliabilityGrid article:nth-child(1) strong,
+.metric:nth-child(1) strong {
+  color: var(--rose);
+}
+
+.reliabilityGrid article:nth-child(2) strong,
+.metric:nth-child(2) strong {
+  color: var(--amber);
+}
+
+.reliabilityGrid article:nth-child(3) strong,
+.metric:nth-child(3) strong {
+  color: var(--lime);
+}
+
+.reliabilityGrid article:nth-child(4) strong,
+.metric:nth-child(4) strong {
+  color: var(--teal);
+}
+
+.opsNote {
+  border-color: rgba(255, 189, 74, 0.3);
+  background: linear-gradient(135deg, rgba(255, 189, 74, 0.12), rgba(255, 79, 123, 0.06));
+}
+
+.diagnosticFeed article,
+.diagnosticFeed > span {
+  border-color: rgba(255, 79, 123, 0.24);
+  background: linear-gradient(135deg, rgba(255, 79, 123, 0.12), rgba(74, 140, 255, 0.05));
+}
+
+.metricGrid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric {
+  min-height: 116px;
+}
+
+.metric::after {
+  content: "";
+  position: absolute;
+  inset: auto 12px 12px;
+  height: 2px;
+  background: linear-gradient(90deg, currentColor, transparent);
+  opacity: 0.28;
+}
+
+.commandLayout,
+.analyticsGrid,
+.taskGrid {
+  gap: 14px;
+}
+
+.runPanel {
+  border-color: rgba(184, 244, 93, 0.18);
+}
+
+.runTimer {
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid rgba(184, 244, 93, 0.28);
+  border-radius: 999px;
+  background: rgba(184, 244, 93, 0.08);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.progressLine,
+.queueGauge {
+  height: 12px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.progressLine span,
+.queueGauge span {
+  background: linear-gradient(90deg, var(--rose), var(--amber), var(--lime), var(--teal));
+}
+
+.progressLine span.running {
+  background: linear-gradient(90deg, var(--rose), var(--amber), var(--lime), var(--teal), var(--blue));
+  background-size: 220% 100%;
+}
+
+.processNode {
+  flex-basis: 132px;
+  min-height: 88px;
+  border-color: rgba(236, 245, 255, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.025));
+}
+
+.processNode.active {
+  border-color: rgba(255, 189, 74, 0.56);
+  background: rgba(255, 189, 74, 0.1);
+}
+
+.processNode.active i {
+  background: var(--amber);
+}
+
+.processNode.done i {
+  background: var(--lime);
+}
+
+.insight,
+.platformItem,
+.ttsVoiceCard {
+  border-color: rgba(236, 245, 255, 0.12);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.chartPanel {
+  background:
+    linear-gradient(145deg, rgba(74, 140, 255, 0.1), transparent 34%),
+    linear-gradient(180deg, rgba(15, 21, 31, 0.94), rgba(8, 12, 18, 0.92));
+}
+
+.formPanel {
+  background:
+    linear-gradient(145deg, rgba(255, 189, 74, 0.08), transparent 36%),
+    linear-gradient(180deg, rgba(15, 21, 31, 0.94), rgba(8, 12, 18, 0.92));
+}
+
+.toggleField {
+  border-color: rgba(236, 245, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.toggleField input {
+  accent-color: var(--amber);
+}
+
+.latestVideoPanel {
+  border-color: rgba(255, 79, 123, 0.18);
+}
+
+.ttsTester {
+  grid-template-columns: minmax(280px, 1fr) 190px auto;
+  align-items: end;
+}
+
+.ttsVoiceCard {
+  min-height: 78px;
+  display: grid;
+  gap: 3px;
+  align-content: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.ttsVoiceCard span {
+  color: var(--faint);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ttsVoiceCard strong {
+  color: var(--rose);
+  font-size: 16px;
+}
+
+.ttsVoiceCard small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.ttsTester audio {
+  grid-column: 1 / -1;
+}
+
+.tablePanel {
+  border-color: rgba(74, 140, 255, 0.16);
+}
+
+tbody tr:hover {
+  background: rgba(255, 189, 74, 0.055);
+}
+
+.pill {
+  border-color: rgba(236, 245, 255, 0.12);
+}
+
+@keyframes prismShift {
+  from {
+    background-position: 0 0, 0 0, 0 0;
+  }
+  to {
+    background-position: 144px 0, 0 0, 0 0;
+  }
+}
+
+@media (max-width: 1180px) {
+  .topOpsGrid,
+  .commandLayout,
+  .analyticsGrid,
+  .taskGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .metricGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ttsTester {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .appShell {
+    width: min(100% - 16px, 1680px);
+    padding-top: 12px;
+  }
+
+  .loginPanel {
+    padding: 24px;
+  }
+
+  .loginBrand h1 {
+    font-size: 30px;
+  }
+
+  .loginSignal,
+  .metricGrid,
+  .reliabilityGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .heroConsole {
+    min-height: 320px;
+  }
+
+  .heroConsole #consoleOutput {
+    min-height: 230px;
+  }
+}

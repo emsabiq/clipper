@@ -836,16 +836,16 @@ THUMBNAIL_TTS_ENABLED=true
 THUMBNAIL_TTS_PROVIDER=openai
 THUMBNAIL_TTS_FALLBACK_PROVIDER=none
 OPENAI_TTS_MODEL=gpt-4o-mini-tts
-OPENAI_TTS_VOICE=onyx
+OPENAI_TTS_VOICE=nova
 OPENAI_TTS_SPEED=1.35
-OPENAI_TTS_INSTRUCTIONS=Bicara sepenuhnya dalam Bahasa Indonesia. Gunakan pelafalan Indonesia natural seperti pria dewasa Indonesia, jelas, tegas, percaya diri, dan cepat. Jangan memakai aksen Inggris atau intonasi bule. Baca tanpa jeda dramatis, tanpa menyuarakan tanda baca, dan cocok untuk pembuka video pendek.
+OPENAI_TTS_INSTRUCTIONS=Bicara sepenuhnya dalam Bahasa Indonesia. Gunakan pelafalan Indonesia natural seperti wanita dewasa Indonesia, jelas, tegas, percaya diri, dan cepat. Jangan memakai aksen Inggris atau intonasi bule. Baca tanpa jeda dramatis, tanpa menyuarakan tanda baca, dan cocok untuk pembuka video pendek.
 THUMBNAIL_TTS_STRIP_PUNCTUATION=true
 THUMBNAIL_TTS_MAX_CHARS=90
-DEEPGRAM_TTS_MODEL=aura-2-apollo-en
+DEEPGRAM_TTS_MODEL=aura-2-amalthea-en
 DEEPGRAM_TTS_SPEED=1.5
 DEEPGRAM_TTS_ACCENT_PROFILE=id
 DEEPGRAM_TTS_PRONUNCIATION_ENABLED=true
-THUMBNAIL_TTS_VOLUME=1.45
+THUMBNAIL_TTS_VOLUME=1.85
 THUMBNAIL_TTS_PAD_SECONDS=0
 THUMBNAIL_TTS_MAX_SECONDS=12
 THUMBNAIL_TRANSITION_ENABLED=true
@@ -1021,7 +1021,7 @@ Model OpenAI TTS untuk pembuka thumbnail. Default: `gpt-4o-mini-tts`.
 
 #### `OPENAI_TTS_VOICE`
 
-Voice OpenAI TTS. Default: `onyx` untuk karakter pria yang lebih tegas.
+Voice OpenAI TTS. Default: `nova` untuk karakter wanita yang jelas dan tegas.
 
 #### `OPENAI_TTS_SPEED`
 
@@ -1029,7 +1029,7 @@ Kecepatan OpenAI TTS. Default: `1.35`, dibuat cepat tapi masih jelas untuk Bahas
 
 #### `OPENAI_TTS_INSTRUCTIONS`
 
-Instruksi gaya bicara OpenAI TTS. Default memaksa Bahasa Indonesia natural, pria dewasa Indonesia, jelas, tegas, cepat, dan tanpa aksen Inggris.
+Instruksi gaya bicara OpenAI TTS. Default memaksa Bahasa Indonesia natural, wanita dewasa Indonesia, jelas, tegas, cepat, dan tanpa aksen Inggris.
 
 #### `THUMBNAIL_TTS_STRIP_PUNCTUATION`
 
@@ -1041,7 +1041,7 @@ Batas karakter teks TTS dari judul thumbnail. Default: `90`, supaya biaya dan du
 
 #### `DEEPGRAM_TTS_MODEL`
 
-Model suara Deepgram jika `THUMBNAIL_TTS_PROVIDER=deepgram`. Default: `aura-2-apollo-en` untuk suara laki-laki confident.
+Model suara Deepgram jika `THUMBNAIL_TTS_PROVIDER=deepgram`. Default: `aura-2-amalthea-en` untuk profil suara wanita.
 
 #### `DEEPGRAM_TTS_SPEED`
 
@@ -1057,7 +1057,7 @@ Mengaktifkan pronunciation override IPA khusus jika `THUMBNAIL_TTS_PROVIDER=deep
 
 #### `THUMBNAIL_TTS_VOLUME`
 
-Gain audio TTS pembuka thumbnail sebelum video utama dimulai. Default: `1.45`.
+Gain audio TTS pembuka thumbnail sebelum video utama dimulai. Default: `1.85`.
 
 #### `THUMBNAIL_TRANSITION_ENABLED`
 
