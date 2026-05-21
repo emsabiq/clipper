@@ -161,8 +161,7 @@ async function publishReadyPlatform(name, jobId, errors, quotaExceeded, callback
 }
 
 function publishReadyDecisionFromConfig() {
-  const enabled = enabledPublishPlatformsFromConfig(config);
-  return selectPublishPlatforms({ ...enabled, facebook: false }, config.safePublishMode);
+  return selectPublishPlatforms(enabledPublishPlatformsFromConfig(config), config.safePublishMode);
 }
 
 async function appendSafePublishModeSkips(jobId, publishDecision) {
