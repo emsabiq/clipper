@@ -82,7 +82,7 @@ async function resolveThumbnailPath(job) {
   }
 }
 
-async function resolveVideoPath(job) {
+async function resolveVideoPath(job, options = {}) {
   const videoPath = job.final_video_path || "";
   if (videoPath) {
     try {
@@ -97,12 +97,31 @@ async function resolveVideoPath(job) {
 
   await fs.mkdir(path.join(config.generatedDir, "ready-videos"), { recursive: true });
   const target = path.join(config.generatedDir, "ready-videos", `${job.job_id}.mp4`);
-  const response = await fetch(job.public_video_url);
+  let response;
+  try {
+    response = await fetch(job.public_video_url);
+  } catch (error) {
+    if (options.allowMissingLocal) {
+      console.warn(`Download ulang video ready dilewati; lanjut pakai public_video_url: ${error.message}`);
+      return videoPath;
+    }
+    throw error;
+  }
   if (!response.ok) {
+    if (options.allowMissingLocal) {
+      console.warn(`Download ulang video ready dilewati; HTTP ${response.status}, lanjut pakai public_video_url.`);
+      return videoPath;
+    }
     throw new Error(`Gagal download ulang video ready dari remote storage: HTTP ${response.status}`);
   }
   const buffer = Buffer.from(await response.arrayBuffer());
-  if (!buffer.length) throw new Error("Video ready dari remote storage kosong.");
+  if (!buffer.length) {
+    if (options.allowMissingLocal) {
+      console.warn("Download ulang video ready kosong; lanjut pakai public_video_url.");
+      return videoPath;
+    }
+    throw new Error("Video ready dari remote storage kosong.");
+  }
   await fs.writeFile(target, buffer);
   return target;
 }
@@ -253,7 +272,11 @@ const quotaExceeded = {};
 
 try {
   const thumbnailPath = await resolveThumbnailPath(job);
-  const videoPath = await resolveVideoPath(job);
+  const needsLocalVideoPath = Boolean(
+    (publishDecision.platforms.youtube && (!youtube || forceYoutube)) ||
+    (publishDecision.platforms.tiktok && !tiktok)
+  );
+  const videoPath = await resolveVideoPath(job, { allowMissingLocal: !needsLocalVideoPath });
   const socialCaption = stripCaptionSourceCredit(job.caption || "", {
     sourceUrl: job.source_url
   });
