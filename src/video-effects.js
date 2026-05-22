@@ -3,11 +3,16 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { config } from "./config.js";
 
+function numberEnv(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) ? value : fallback;
+}
+
 const FRAME = {
-  width: 950,
-  height: 1375,
-  x: 65,
-  y: 138
+  width: numberEnv("VIDEO_FRAME_CONTENT_WIDTH", 892),
+  height: numberEnv("VIDEO_FRAME_CONTENT_HEIGHT", 1140),
+  x: numberEnv("VIDEO_FRAME_CONTENT_X", 91),
+  y: numberEnv("VIDEO_FRAME_CONTENT_Y", 103)
 };
 const rendererPath = path.join(config.srcDir, "branding-renderer.py");
 

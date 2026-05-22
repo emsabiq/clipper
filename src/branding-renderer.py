@@ -7,12 +7,36 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 
+def int_env(name, fallback):
+    try:
+        return int(os.environ.get(name, "") or fallback)
+    except (TypeError, ValueError):
+        return fallback
+
+
+def float_env(name, fallback):
+    try:
+        return float(os.environ.get(name, "") or fallback)
+    except (TypeError, ValueError):
+        return fallback
+
+
 CANVAS_W = 1080
 CANVAS_H = 1920
+ROOT_DIR = Path(__file__).resolve().parent.parent
 GOLD = (255, 190, 18)
 DEEP_GOLD = (238, 130, 0)
 WHITE = (248, 248, 244)
 BLACK = (3, 3, 3)
+TITLE_FRAME_ASSET = os.environ.get("THUMBNAIL_TITLE_FRAME_ASSET", "assets/branding/framejudulnew.png")
+TITLE_FRAME_SOURCE_ASSET = os.environ.get("THUMBNAIL_TITLE_FRAME_SOURCE_ASSET", "assets/branding/framejudulnew-source.png")
+TITLE_FRAME_WIDTH = int_env("THUMBNAIL_TITLE_FRAME_WIDTH", 940)
+TITLE_FRAME_TOP = int_env("THUMBNAIL_TITLE_FRAME_TOP", 825)
+VIDEO_TITLE_FRAME_WIDTH = int_env("VIDEO_TITLE_FRAME_WIDTH", 930)
+VIDEO_TITLE_FRAME_TOP = int_env("VIDEO_TITLE_FRAME_TOP", 850)
+TITLE_FRAME_TEXT_RECT = (46, 26, 412, 148)
+THUMBNAIL_TITLE_BG_OPACITY = max(0.0, min(1.0, float_env("THUMBNAIL_TITLE_BG_OPACITY", 0.30)))
+THUMBNAIL_TITLE_FRAME_OPACITY = max(0.0, min(1.0, float_env("THUMBNAIL_TITLE_FRAME_OPACITY", 0.88)))
 
 
 def clean_text(value, fallback=""):
@@ -135,8 +159,8 @@ def wrap_text(draw, text, font, max_width, max_lines=2):
     return kept
 
 
-def fit_title_layout(draw, title, rect, max_width, max_size=92, min_size=34):
-    max_height = (rect[3] - rect[1]) - 70
+def fit_title_layout(draw, title, rect, max_width, max_size=92, min_size=34, vertical_padding=70):
+    max_height = (rect[3] - rect[1]) - vertical_padding
     for max_lines in (4, 3):
         size = max_size
         while size >= min_size:
@@ -157,6 +181,57 @@ def fit_title_layout(draw, title, rect, max_width, max_size=92, min_size=34):
     heights = [text_size(draw, line, font, 4)[1] for line in lines]
     total_h = sum(heights) + line_gap * (len(lines) - 1)
     return lines, font, min_size, line_gap, heights, total_h
+
+
+def resolve_asset_path(value):
+    path = Path(value)
+    if path.is_absolute():
+        return path
+    return ROOT_DIR / path
+
+
+def load_title_frame(target_width=None):
+    path = resolve_asset_path(TITLE_FRAME_ASSET)
+    if not path.exists():
+        return None, None
+    frame = Image.open(path).convert("RGBA")
+    source_size = frame.size
+    width = min(CANVAS_W - 80, max(420, target_width or TITLE_FRAME_WIDTH))
+    height = int(frame.height * (width / frame.width))
+    return frame.resize((width, height), Image.Resampling.LANCZOS), source_size
+
+
+def load_thumbnail_title_frame():
+    source_path = resolve_asset_path(TITLE_FRAME_SOURCE_ASSET)
+    path = source_path if source_path.exists() else resolve_asset_path(TITLE_FRAME_ASSET)
+    if not path.exists():
+        return None, None
+    frame = Image.open(path).convert("RGBA")
+    source_size = frame.size
+    px = frame.load()
+    for y in range(frame.height):
+        for x in range(frame.width):
+            r, g, b, a = px[x, y]
+            if not a:
+                continue
+            if r < 58 and g < 58 and b < 58:
+                px[x, y] = (r, g, b, int(a * THUMBNAIL_TITLE_BG_OPACITY))
+            else:
+                px[x, y] = (r, g, b, int(a * THUMBNAIL_TITLE_FRAME_OPACITY))
+    width = min(CANVAS_W - 80, max(420, TITLE_FRAME_WIDTH))
+    height = int(frame.height * (width / frame.width))
+    return frame.resize((width, height), Image.Resampling.LANCZOS), source_size
+
+
+def scaled_title_text_rect(frame_x, frame_y, frame_size, source_size):
+    sx = frame_size[0] / source_size[0]
+    sy = frame_size[1] / source_size[1]
+    return (
+        int(frame_x + TITLE_FRAME_TEXT_RECT[0] * sx),
+        int(frame_y + TITLE_FRAME_TEXT_RECT[1] * sy),
+        int(frame_x + TITLE_FRAME_TEXT_RECT[2] * sx),
+        int(frame_y + TITLE_FRAME_TEXT_RECT[3] * sy),
+    )
 
 
 def add_glow(base, rect, radius, color=GOLD, strength=150):
@@ -232,13 +307,31 @@ def render_thumbnail(args):
     add_vignette(canvas)
     draw = ImageDraw.Draw(canvas)
 
-    rect = (130, 880, 950, 1174)
-    add_glow(canvas, rect, 42, GOLD, 135)
-    draw_transparent_panel(draw, rect, 42, 142)
-    draw_highlight(canvas, rect)
+    title_frame, title_frame_source_size = load_thumbnail_title_frame()
+    if title_frame:
+        frame_w, frame_h = title_frame.size
+        frame_x = (CANVAS_W - frame_w) // 2
+        frame_y = max(40, min(CANVAS_H - frame_h - 80, TITLE_FRAME_TOP))
+        rect = scaled_title_text_rect(frame_x, frame_y, title_frame.size, title_frame_source_size)
+        canvas.alpha_composite(title_frame, (frame_x, frame_y))
+        max_text_width = rect[2] - rect[0]
+        lines, font, size, line_gap, heights, total_h = fit_title_layout(
+            draw,
+            title,
+            rect,
+            max_text_width,
+            max_size=70,
+            min_size=30,
+            vertical_padding=8,
+        )
+    else:
+        rect = (130, 880, 950, 1174)
+        add_glow(canvas, rect, 42, GOLD, 135)
+        draw_transparent_panel(draw, rect, 42, 142)
+        draw_highlight(canvas, rect)
+        max_text_width = (rect[2] - rect[0]) - 118
+        lines, font, size, line_gap, heights, total_h = fit_title_layout(draw, title, rect, max_text_width)
 
-    max_text_width = (rect[2] - rect[0]) - 118
-    lines, font, size, line_gap, heights, total_h = fit_title_layout(draw, title, rect, max_text_width)
     y = rect[1] + (rect[3] - rect[1] - total_h) // 2 - 4
     for index, line in enumerate(lines):
         color = WHITE if index == 0 else GOLD
@@ -253,12 +346,13 @@ def render_thumbnail(args):
         )
         y += height + line_gap
 
-    pill = clean_text(args.pill or os.environ.get("THUMBNAIL_PILL_TEXT"), "Podcast | Highlight | Viral")
-    pill_font = load_font(29)
-    pill_w, pill_h = text_size(draw, pill, pill_font, 1)
-    pill_rect = (150, 1202, min(930, 150 + pill_w + 42), 1256)
-    draw.rounded_rectangle(pill_rect, radius=13, outline=(255, 255, 255, 120), width=2)
-    draw.text((pill_rect[0] + 21, pill_rect[1] + 10), pill, font=pill_font, fill=(245, 245, 245), stroke_width=2, stroke_fill=(0, 0, 0, 210))
+    if not title_frame:
+        pill = clean_text(args.pill or os.environ.get("THUMBNAIL_PILL_TEXT"), "Podcast | Highlight | Viral")
+        pill_font = load_font(29)
+        pill_w, pill_h = text_size(draw, pill, pill_font, 1)
+        pill_rect = (150, 1202, min(930, 150 + pill_w + 42), 1256)
+        draw.rounded_rectangle(pill_rect, radius=13, outline=(255, 255, 255, 120), width=2)
+        draw.text((pill_rect[0] + 21, pill_rect[1] + 10), pill, font=pill_font, fill=(245, 245, 245), stroke_width=2, stroke_fill=(0, 0, 0, 210))
 
     save_jpeg_under_limit(canvas, args.output)
 
@@ -269,13 +363,13 @@ def render_lower_third(args):
     canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(canvas)
 
-    rect = (116, 1564, 964, 1742)
+    rect = (92, 1542, 988, 1748)
     add_glow(canvas, rect, 26, GOLD, 120)
     draw.rounded_rectangle(rect, radius=26, fill=(0, 0, 0, 150), outline=(*GOLD, 180), width=2)
     draw.rounded_rectangle((rect[0] + 14, rect[1] + 14, rect[2] - 14, rect[3] - 14), radius=18, outline=(255, 255, 255, 45), width=1)
 
-    max_width = rect[2] - rect[0] - 90
-    quote_size = 43
+    max_width = rect[2] - rect[0] - 96
+    quote_size = 48
     font = load_font(quote_size)
     lines = wrap_text(draw, f"\"{quote}\"", font, max_width, 2)
     while len(lines) > 1 and text_size(draw, lines[0], font, 2)[0] > max_width:
@@ -289,7 +383,7 @@ def render_lower_third(args):
         draw.text(((CANVAS_W - width) / 2, y), line, font=font, fill=WHITE, stroke_width=2, stroke_fill=(0, 0, 0, 210))
         y += line_h
 
-    brand_font = load_font(27)
+    brand_font = load_font(29)
     brand_w, _ = text_size(draw, brand, brand_font, 1)
     draw.text(((CANVAS_W - brand_w) / 2, rect[3] - 45), brand, font=brand_font, fill=(215, 183, 122, 220), stroke_width=1, stroke_fill=(0, 0, 0, 190))
     draw.rounded_rectangle((180, rect[3] - 9, 900, rect[3] - 3), radius=4, fill=(255, 190, 18, 160))
