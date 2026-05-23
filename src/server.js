@@ -532,7 +532,7 @@ app.post("/api/instagram/demo-publish", async (req, res) => {
     const result = await publishReel({
       videoUrl: job.public_video_url,
       caption,
-      coverUrl: job.public_thumbnail_url || ""
+      coverUrl: job.instagram_cover_url || job.public_thumbnail_url || ""
     });
     await patchItem("jobs", job.job_id, {
       instagram_status: result?.mediaId ? "published" : "failed",

@@ -11,7 +11,7 @@ import { stripCaptionSourceCredit } from "./caption-policy.js";
 import { generateThumbnail, prependThumbnailIntro } from "./thumbnail.js";
 import { fileExists, uploadHistoryFile, uploadJobFiles, validatePublicUrl } from "./uploader.js";
 import { publishReel } from "./instagram.js";
-import { prepareInstagramVideo } from "./instagram-video.js";
+import { prepareInstagramCover, prepareInstagramVideo } from "./instagram-video.js";
 import { publishToFacebook } from "./facebook.js";
 import { buildYoutubeMetadata, isYoutubeQuotaError, publishToYoutube } from "./youtube-publisher.js";
 import { publishToTikTok } from "./tiktok.js";
@@ -1028,10 +1028,22 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail, publi
         sourcePath: output.finalAbsPath,
         currentVideoUrl: upload.videoUrl
       });
+      const instagramCover = await prepareInstagramCover({
+        job,
+        sourcePath: instagramVideo.videoPath
+      });
+      const instagramCoverUrl = instagramCover.coverUrl || upload.thumbnailUrl || "";
+      if (instagramCoverUrl) {
+        await validatePublicUrl(instagramCoverUrl);
+      }
+      await updateJob(job.job_id, {
+        instagram_cover_path: instagramCover.coverPath || "",
+        instagram_cover_url: instagramCover.coverUrl || ""
+      });
       return publishReel({
         videoUrl: instagramVideo.videoUrl,
         caption: socialCaption,
-        coverUrl: upload.thumbnailUrl || ""
+        coverUrl: instagramCoverUrl
       });
     });
   }

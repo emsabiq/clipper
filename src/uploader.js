@@ -262,6 +262,18 @@ export async function uploadVideoFile({ videoPath, videoName }) {
   return publicVideoUrl(videoName);
 }
 
+export async function uploadThumbnailFile({ thumbnailPath, thumbnailName }) {
+  if (!shouldUploadToRemote()) return "";
+
+  await withRemoteClient(async (client) => {
+    const thumbnailsDir = path.posix.join(config.ftp.remoteDir, "thumbnails");
+    await client.ensureDir(thumbnailsDir);
+    await uploadFromVerified(client, thumbnailPath, thumbnailName, thumbnailsDir);
+  }, { timeoutMs: config.ftp.uploadTimeoutMs, retries: config.ftp.retries });
+
+  return publicThumbnailUrl(thumbnailName);
+}
+
 export async function uploadHistoryFile(historyFile) {
   if (!shouldUploadToRemote()) return "";
   await withRemoteClient(async (client) => {

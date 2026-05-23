@@ -14,6 +14,7 @@ import { stripCaptionSourceCredit } from "./caption-policy.js";
 import { clearYoutubeQuotaExceeded, markYoutubeQuotaExceeded, youtubeQuotaCooldown } from "./youtube-quota.js";
 import { writeJobDiagnostic } from "./diagnostics.js";
 import { enabledPublishPlatformsFromConfig, selectPublishPlatforms } from "./publish-mode.js";
+import { prepareInstagramCover } from "./instagram-video.js";
 
 function argValue(name, fallback = "") {
   const index = process.argv.indexOf(name);
@@ -367,9 +368,18 @@ try {
   if (publishDecision.platforms.instagram && !instagram) {
     const publishedInstagram = await publishReadyPlatform("instagram", job.job_id, platformErrors, quotaExceeded, async () => {
       if (!job.public_video_url) throw new Error("public_video_url kosong, Instagram butuh URL video publik dari remote storage.");
+      const instagramCover = videoPath
+        ? await prepareInstagramCover({ job, sourcePath: videoPath })
+        : { coverPath: "", coverUrl: "" };
+      const coverUrl = instagramCover.coverUrl || job.instagram_cover_url || job.public_thumbnail_url || "";
+      await patchItem("jobs", job.job_id, {
+        instagram_cover_path: instagramCover.coverPath || job.instagram_cover_path || "",
+        instagram_cover_url: instagramCover.coverUrl || job.instagram_cover_url || ""
+      });
       return publishReel({
         videoUrl: job.public_video_url,
-        caption: socialCaption
+        caption: socialCaption,
+        coverUrl
       });
     });
     if (publishedInstagram) instagram = publishedInstagram;

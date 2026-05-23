@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { config } from "./config.js";
-import { uploadVideoFile } from "./uploader.js";
+import { uploadThumbnailFile, uploadVideoFile } from "./uploader.js";
 
 const QUALITY_STEPS = [
   { video: "900k", audio: "96k" },
@@ -82,6 +82,45 @@ async function transcodeInstagramVideo({ sourcePath, targetPath, videoBitrate, a
     "-shortest",
     targetPath
   ]);
+}
+
+async function extractInstagramCover({ sourcePath, targetPath }) {
+  await fs.mkdir(path.dirname(targetPath), { recursive: true });
+  await runFfmpeg([
+    "-y",
+    "-i",
+    sourcePath,
+    "-frames:v",
+    "1",
+    "-vf",
+    "scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920",
+    "-q:v",
+    "2",
+    targetPath
+  ]);
+}
+
+export async function prepareInstagramCover({ job, sourcePath }) {
+  const coverName = `${job.job_id}-instagram-cover.jpg`;
+  const coverPath = path.join(config.thumbnailDir, coverName);
+
+  await extractInstagramCover({ sourcePath, targetPath: coverPath });
+  const coverUrl = await uploadThumbnailFile({
+    thumbnailPath: coverPath,
+    thumbnailName: coverName
+  });
+
+  console.log("IG cover memakai frame pertama video:", {
+    coverName,
+    coverUrl: coverUrl || "",
+    source: path.basename(sourcePath)
+  });
+
+  return {
+    coverPath,
+    coverName,
+    coverUrl
+  };
 }
 
 export async function prepareInstagramVideo({ job, sourcePath, currentVideoUrl }) {
