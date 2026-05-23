@@ -31,6 +31,13 @@ WHITE = (245, 245, 245)
 LIGHT_GRAY = (184, 184, 184)
 BLACK = (3, 3, 3)
 POSTER_TITLE_FALLBACK = "RAHASIA DI BALIK PERDEBATAN PROYEK ARTIS TERBONGKAR"
+PODFLASK_FRAME_ASSET = os.environ.get("PODFLASK_FRAME_ASSET", "assets/branding/frame.png")
+PODFLASK_TITLE_X = int_env("PODFLASK_TITLE_X", 88)
+PODFLASK_TITLE_Y = int_env("PODFLASK_TITLE_Y", 1110)
+PODFLASK_TITLE_WIDTH = int_env("PODFLASK_TITLE_WIDTH", 904)
+PODFLASK_TITLE_HEIGHT = int_env("PODFLASK_TITLE_HEIGHT", 286)
+PODFLASK_TITLE_MAX_SIZE = int_env("PODFLASK_TITLE_MAX_SIZE", 94)
+PODFLASK_TITLE_MIN_SIZE = int_env("PODFLASK_TITLE_MIN_SIZE", 48)
 TITLE_FRAME_ASSET = os.environ.get("THUMBNAIL_TITLE_FRAME_ASSET", "assets/branding/framejudulnew.png")
 TITLE_FRAME_SOURCE_ASSET = os.environ.get("THUMBNAIL_TITLE_FRAME_SOURCE_ASSET", "assets/branding/framejudulnew-source.png")
 TITLE_FRAME_WIDTH = int_env("THUMBNAIL_TITLE_FRAME_WIDTH", 940)
@@ -84,11 +91,13 @@ def font_candidates(role="headline"):
             r"C:\Windows\Fonts\arialbd.ttf",
         ],
         "cta": [
+            str(fonts_dir / "BebasNeue-Regular.otf"),
             r"C:\Windows\Fonts\BebasNeue-Regular.otf",
             str(fonts_dir / "Oswald-Variable.ttf"),
             r"C:\Windows\Fonts\impact.ttf",
         ],
         "headline": [
+            str(fonts_dir / "BebasNeue-Regular.otf"),
             r"C:\Windows\Fonts\BebasNeue-Regular.otf",
             str(fonts_dir / "Oswald-Variable.ttf"),
             r"C:\Windows\Fonts\impact.ttf",
@@ -228,6 +237,21 @@ def resolve_asset_path(value):
     if path.is_absolute():
         return path
     return ROOT_DIR / path
+
+
+def load_podflask_frame(transparent_video=True):
+    path = resolve_asset_path(PODFLASK_FRAME_ASSET)
+    if not path.exists():
+        return None
+    frame = Image.open(path).convert("RGBA")
+    if frame.size != (CANVAS_W, CANVAS_H):
+        frame = frame.resize((CANVAS_W, CANVAS_H), Image.Resampling.LANCZOS)
+    if transparent_video:
+        return frame
+
+    canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (*BLACK, 255))
+    canvas.alpha_composite(frame)
+    return canvas
 
 
 def load_title_frame(target_width=None):
@@ -413,6 +437,57 @@ def fit_poster_title_fonts(draw, lines, max_width, max_height):
     return fonts, gaps, heights, total_h
 
 
+def fit_podflask_title(draw, title, rect):
+    max_width = rect[2] - rect[0]
+    max_height = rect[3] - rect[1]
+    title = clean_title(title)
+    for max_lines in (3, 2, 4):
+        size = PODFLASK_TITLE_MAX_SIZE
+        while size >= PODFLASK_TITLE_MIN_SIZE:
+            font = load_font(size, role="headline")
+            lines = wrap_text(draw, title, font, max_width, max_lines=max_lines)
+            line_gap = max(2, int(size * 0.04))
+            boxes = [draw.textbbox((0, 0), line, font=font, stroke_width=4) for line in lines]
+            heights = [box[3] - box[1] for box in boxes]
+            total_h = sum(heights) + line_gap * (len(lines) - 1)
+            width_ok = all((box[2] - box[0]) <= max_width for box in boxes)
+            if width_ok and total_h <= max_height:
+                return lines, font, line_gap, boxes, total_h
+            size -= 2
+
+    font = load_font(PODFLASK_TITLE_MIN_SIZE, role="headline")
+    lines = wrap_text(draw, title, font, max_width, max_lines=3)
+    boxes = [draw.textbbox((0, 0), line, font=font, stroke_width=4) for line in lines]
+    total_h = sum(box[3] - box[1] for box in boxes) + 2 * (len(lines) - 1)
+    return lines, font, 2, boxes, total_h
+
+
+def draw_podflask_title(canvas, title):
+    rect = (
+        PODFLASK_TITLE_X,
+        PODFLASK_TITLE_Y,
+        min(CANVAS_W - 64, PODFLASK_TITLE_X + PODFLASK_TITLE_WIDTH),
+        min(CANVAS_H - 420, PODFLASK_TITLE_Y + PODFLASK_TITLE_HEIGHT),
+    )
+    draw = ImageDraw.Draw(canvas)
+    lines, font, line_gap, boxes, total_h = fit_podflask_title(draw, title, rect)
+    y = rect[1] + ((rect[3] - rect[1]) - total_h) / 2
+    for index, (line, box) in enumerate(zip(lines, boxes)):
+        width = box[2] - box[0]
+        height = box[3] - box[1]
+        x = rect[0] + ((rect[2] - rect[0]) - width) / 2
+        fill = DEEP_GOLD if index == 1 and len(lines) > 1 else WHITE
+        draw.text(
+            (x - box[0], y - box[1]),
+            line,
+            font=font,
+            fill=fill,
+            stroke_width=4,
+            stroke_fill=(0, 0, 0, 235),
+        )
+        y += height + line_gap
+
+
 def cut_transparent_round_rect(image, rect, radius):
     alpha = image.getchannel("A")
     mask = Image.new("L", image.size, 0)
@@ -534,8 +609,12 @@ def save_jpeg_under_limit(image, output):
 def render_thumbnail(args):
     title = clean_title(args.title)
     if not bool_env("THUMBNAIL_USE_SOURCE_IMAGE", False):
-        canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (*BLACK, 255))
-        draw_podcast_reference_layout(canvas, title, transparent_video=False)
+        canvas = load_podflask_frame(transparent_video=False)
+        if canvas is None:
+            canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (*BLACK, 255))
+            draw_podcast_reference_layout(canvas, title, transparent_video=False)
+        else:
+            draw_podflask_title(canvas, title)
         save_jpeg_under_limit(canvas, args.output)
         return
 
@@ -597,8 +676,12 @@ def render_thumbnail(args):
 
 
 def render_video_frame(args):
-    canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (*BLACK, 255))
-    draw_podcast_reference_layout(canvas, clean_title(args.title), transparent_video=True)
+    canvas = load_podflask_frame(transparent_video=True)
+    if canvas is None:
+        canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (*BLACK, 255))
+        draw_podcast_reference_layout(canvas, clean_title(args.title), transparent_video=True)
+    else:
+        draw_podflask_title(canvas, clean_title(args.title))
     canvas.save(args.output, "PNG")
 
 

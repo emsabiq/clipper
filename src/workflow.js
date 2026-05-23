@@ -812,6 +812,7 @@ function summarizeClipResult(result) {
 }
 
 function shouldUseLowerThird(video = {}, options = {}) {
+  if (!config.videoEffects.lowerThirdEnabled) return false;
   const configured = options.useLowerThird ?? video.use_lower_third ?? config.videoEffects.lowerThirdEnabled;
   if (configured === undefined || configured === null || configured === "") return false;
   if (typeof configured === "boolean") return configured;

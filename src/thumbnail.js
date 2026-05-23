@@ -25,13 +25,14 @@ const BORDER_OPACITY = clampOpacity(process.env.THUMBNAIL_BORDER_OPACITY, 0.85);
 const TEXT_OUTLINE_OPACITY = clampOpacity(process.env.THUMBNAIL_TEXT_OUTLINE_OPACITY, 0.85);
 const JPEG_Q = process.env.THUMBNAIL_JPEG_Q || "1";
 const INTRO_SECONDS = clampSeconds(process.env.THUMBNAIL_INTRO_SECONDS, 0.9);
+const INTRO_FREEZE_SEEK_SECONDS = clampDuration(process.env.THUMBNAIL_INTRO_FREEZE_SEEK_SECONDS, 0.8, 0, 5);
 const INTRO_VISUAL_MODE = String(process.env.THUMBNAIL_IMAGE_INTRO_ENABLED || "").toLowerCase() === "true"
   ? "thumbnail"
   : "video";
 const TTS_PAD_SECONDS = clampDuration(process.env.THUMBNAIL_TTS_PAD_SECONDS, 0, 0, 2);
 const TTS_MAX_SECONDS = clampDuration(process.env.THUMBNAIL_TTS_MAX_SECONDS, 12, 1, 30);
 const DEFAULT_TRANSITION_ASSET = "assets/branding/transisi-thumbnail-to-content.mp4";
-const TRANSITION_ENABLED = boolValue(process.env.THUMBNAIL_TRANSITION_ENABLED, false);
+const TRANSITION_ENABLED = String(process.env.THUMBNAIL_TRANSITION_ENABLED || "").trim().toLowerCase() === "true";
 const TRANSITION_ASSET = process.env.THUMBNAIL_TRANSITION_ASSET || DEFAULT_TRANSITION_ASSET;
 const TRANSITION_KEY_COLOR = sanitizeColor(process.env.THUMBNAIL_TRANSITION_KEY_COLOR, "0x000000");
 const TRANSITION_KEY_SIMILARITY = clampNumber(process.env.THUMBNAIL_TRANSITION_KEY_SIMILARITY, 0.18, 0, 1);
@@ -247,14 +248,14 @@ async function resolveIntroVisual({ videoPath, thumbnailPath, outputPath }) {
 
   await runFfmpeg([
     "-y",
-    "-ss", "0",
+    "-ss", formatTimestamp(INTRO_FREEZE_SEEK_SECONDS),
     "-i", videoPath,
     "-frames:v", "1",
     "-vf", "scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920",
     "-q:v", JPEG_Q,
     outputPath
   ]);
-  return { path: outputPath, mode: "video_first_frame" };
+  return { path: outputPath, mode: "video_freeze_frame" };
 }
 
 function buildFinalConcatFilter({ introSecondsArg, transition }) {

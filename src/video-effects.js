@@ -9,10 +9,10 @@ function numberEnv(name, fallback) {
 }
 
 const FRAME = {
-  width: numberEnv("VIDEO_FRAME_CONTENT_WIDTH", 1000),
+  width: numberEnv("VIDEO_FRAME_CONTENT_WIDTH", 986),
   height: numberEnv("VIDEO_FRAME_CONTENT_HEIGHT", 796),
-  x: numberEnv("VIDEO_FRAME_CONTENT_X", 40),
-  y: numberEnv("VIDEO_FRAME_CONTENT_Y", 228)
+  x: numberEnv("VIDEO_FRAME_CONTENT_X", 50),
+  y: numberEnv("VIDEO_FRAME_CONTENT_Y", 243)
 };
 const rendererPath = path.join(config.srcDir, "branding-renderer.py");
 const DYNAMIC_FRAME_ENABLED = boolValue(process.env.VIDEO_DYNAMIC_FRAME_ENABLED, true);
@@ -27,8 +27,10 @@ function effectOptions(video = {}, options = {}) {
   return {
     frame: boolValue(options.useFrame ?? video.use_frame, config.videoEffects.frameEnabled),
     filter: boolValue(options.useFilter ?? video.use_filter, config.videoEffects.filterEnabled),
-    watermark: boolValue(options.useWatermark ?? video.use_watermark, config.videoEffects.watermarkEnabled),
-    lowerThird: boolValue(options.useLowerThird ?? video.use_lower_third, config.videoEffects.lowerThirdEnabled)
+    watermark: config.videoEffects.watermarkEnabled
+      && boolValue(options.useWatermark ?? video.use_watermark, config.videoEffects.watermarkEnabled),
+    lowerThird: config.videoEffects.lowerThirdEnabled
+      && boolValue(options.useLowerThird ?? video.use_lower_third, config.videoEffects.lowerThirdEnabled)
   };
 }
 
