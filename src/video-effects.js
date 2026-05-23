@@ -9,12 +9,13 @@ function numberEnv(name, fallback) {
 }
 
 const FRAME = {
-  width: numberEnv("VIDEO_FRAME_CONTENT_WIDTH", 892),
-  height: numberEnv("VIDEO_FRAME_CONTENT_HEIGHT", 1140),
-  x: numberEnv("VIDEO_FRAME_CONTENT_X", 91),
-  y: numberEnv("VIDEO_FRAME_CONTENT_Y", 103)
+  width: numberEnv("VIDEO_FRAME_CONTENT_WIDTH", 1000),
+  height: numberEnv("VIDEO_FRAME_CONTENT_HEIGHT", 796),
+  x: numberEnv("VIDEO_FRAME_CONTENT_X", 40),
+  y: numberEnv("VIDEO_FRAME_CONTENT_Y", 228)
 };
 const rendererPath = path.join(config.srcDir, "branding-renderer.py");
+const DYNAMIC_FRAME_ENABLED = boolValue(process.env.VIDEO_DYNAMIC_FRAME_ENABLED, true);
 
 function boolValue(value, fallback = false) {
   if (value === undefined || value === null || value === "") return fallback;
@@ -32,7 +33,7 @@ function effectOptions(video = {}, options = {}) {
 }
 
 function hasAnyEffect(options) {
-  return options.frame || options.filter || options.watermark;
+  return options.frame || options.filter || options.watermark || options.lowerThird;
 }
 
 async function fileIsReadable(filePath) {
@@ -137,6 +138,16 @@ async function renderLowerThirdOverlay({ job, text }) {
   return outputPath;
 }
 
+async function renderVideoFrameOverlay({ job, title }) {
+  const outputPath = path.join(config.generatedVideoDir, `${job.job_id}-video-frame.png`);
+  await runRenderer([
+    "video-frame",
+    "--output", outputPath,
+    "--title", title || "RAHASIA DI BALIK PERDEBATAN PROYEK ARTIS TERBONGKAR"
+  ]);
+  return outputPath;
+}
+
 function runRenderer(args) {
   return new Promise((resolve, reject) => {
     const child = spawn(config.clipper.pythonCommand, [rendererPath, ...args], { windowsHide: true });
@@ -197,7 +208,7 @@ export async function applyVideoEffects({ job, video, output, options = {} }) {
     || output.caption
   );
   const useLowerThird = Boolean(useFrame && selected.lowerThird && lowerThirdText);
-  if (selected.frame && !await fileIsReadable(config.videoEffects.frameAssetPath)) {
+  if (selected.frame && !DYNAMIC_FRAME_ENABLED && !await fileIsReadable(config.videoEffects.frameAssetPath)) {
     throw new Error(`VIDEO_FRAME_ASSET tidak ditemukan: ${config.videoEffects.frameAssetPath}`);
   }
   if (selected.watermark && !useWatermark) {
@@ -213,11 +224,19 @@ export async function applyVideoEffects({ job, video, output, options = {} }) {
   const lowerThirdPath = useLowerThird
     ? await renderLowerThirdOverlay({ job, text: lowerThirdText })
     : "";
+  const framePath = useFrame
+    ? DYNAMIC_FRAME_ENABLED
+      ? await renderVideoFrameOverlay({
+        job,
+        title: options.frameTitle || output.thumbnailText || output.title || video.source_title || ""
+      })
+      : config.videoEffects.frameAssetPath
+    : "";
 
   const args = ["-y", "-fflags", "+genpts", "-i", inputPath];
   if (useFrame) {
     args.push("-f", "lavfi", "-i", "color=c=#070709:s=1080x1920:r=30");
-    args.push("-loop", "1", "-i", config.videoEffects.frameAssetPath);
+    args.push("-loop", "1", "-i", framePath);
   }
   if (useLowerThird) {
     args.push("-loop", "1", "-i", lowerThirdPath);
@@ -288,7 +307,8 @@ export async function applyVideoEffects({ job, video, output, options = {} }) {
       watermark: useWatermark,
       lowerThird: useLowerThird,
       lowerThirdText: useLowerThird ? lowerThirdText : "",
-      frameAssetPath: useFrame ? ffmpegPathArg(config.videoEffects.frameAssetPath) : "",
+      frameAssetPath: useFrame ? ffmpegPathArg(framePath) : "",
+      dynamicFrame: Boolean(useFrame && DYNAMIC_FRAME_ENABLED),
       watermarkAssetPath: useWatermark ? ffmpegPathArg(config.videoEffects.watermarkAssetPath) : ""
     }
   };

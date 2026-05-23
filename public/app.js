@@ -9,7 +9,7 @@ const PIPELINE_STEPS = [
   "Clipper",
   "Branding",
   "Caption",
-  "Thumbnail",
+  "TTS Intro",
   "Storage",
   "Instagram",
   "Facebook",
@@ -41,7 +41,7 @@ let jobLimit = ROW_LIMIT_DEFAULT;
 let effectDefaults = {
   use_frame: true,
   use_filter: true,
-  use_watermark: true,
+  use_watermark: false,
   use_music: true,
   use_subtitle_highlight: false
 };
@@ -402,7 +402,7 @@ function buildPipelineSteps(state) {
   const thumbnailDone = job.thumbnail_status === "done" || Boolean(job.thumbnail_path);
   const thumbnailDetail = job.thumbnail_intro?.ttsApplied
     ? `TTS ${Number(job.thumbnail_intro.durationSeconds || 0).toFixed(1)}s`
-    : job.thumbnail_status || "Thumbnail";
+    : job.thumbnail_status || "TTS Intro";
   const storageDone = Boolean(job.public_video_url);
   const published = isPublishedJob(job);
 
@@ -411,7 +411,7 @@ function buildPipelineSteps(state) {
     { label: "Clipper", state: stepState(failed && !clipperDone, isActive(job, ["clipper_processing"]), clipperDone), detail: job.clipper_status || "Render" },
     { label: "Branding", state: stepState(false, clipperDone && !job.video_effects && !failed, Boolean(job.video_effects)), detail: job.video_effects ? "FX applied" : "Frame/filter" },
     { label: "Caption", state: stepState(failed && clipperDone && !captionDone, clipperDone && !captionDone && !failed, captionDone), detail: job.caption_status || "Caption" },
-    { label: "Thumbnail", state: stepState(failed && captionDone && !thumbnailDone, captionDone && !thumbnailDone && !failed, thumbnailDone), detail: thumbnailDetail },
+    { label: "TTS Intro", state: stepState(failed && captionDone && !thumbnailDone, captionDone && !thumbnailDone && !failed, thumbnailDone), detail: thumbnailDetail },
     { label: "Storage", state: stepState(failed && thumbnailDone && !storageDone, thumbnailDone && !storageDone && !failed, storageDone), detail: storageDone ? "Public URL" : "Upload" },
     platformStep("Instagram", job.instagram_status, Boolean(job.instagram_media_id), storageDone, failed),
     platformStep("Facebook", job.facebook_status, Boolean(job.facebook_video_id || job.facebook_post_id), storageDone, failed),

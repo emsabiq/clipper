@@ -1208,7 +1208,7 @@ export async function discoverAndQueueVideos(options = {}) {
       subtitle_margin_h: Number(process.env.SUBTITLE_MARGIN_H || 80),
       use_frame: boolEnv("VIDEO_FRAME_ENABLED", true),
       use_filter: boolEnv("VIDEO_FILTER_ENABLED", true),
-      use_watermark: boolEnv("VIDEO_WATERMARK_ENABLED", true),
+      use_watermark: boolEnv("VIDEO_WATERMARK_ENABLED", false),
       notes: [
         `Auto discovery: ${item.discovery_query || "unknown"}`,
         `source=${item.discovery_source || "unknown"}`,

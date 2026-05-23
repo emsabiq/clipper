@@ -793,7 +793,7 @@ const STOPWORDS = new Set([
   "why"
 ]);
 
-function normalizeThumbnailText(value, fallback = "RAHASIA DI BALIK CERITA INI BIKIN PENASARAN") {
+function normalizeThumbnailText(value, fallback = "RAHASIA DI BALIK PERDEBATAN PROYEK ARTIS TERBONGKAR") {
   const cleaned = String(value || "")
     .replace(/[`"'*_#]/g, "")
     .replace(/[,:;]+$/g, "")
@@ -829,7 +829,7 @@ function fallbackThumbnailText(output) {
   const transcriptTitle = buildTranscriptThumbnailText(output?.clipTranscript);
   if (isStrongThumbnailText(transcriptTitle)) return transcriptTitle;
 
-  return "RAHASIA DI BALIK CERITA INI BIKIN PENASARAN";
+  return "RAHASIA DI BALIK PERDEBATAN PROYEK ARTIS TERBONGKAR";
 }
 
 function buildTranscriptThumbnailText(value) {

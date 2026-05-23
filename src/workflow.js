@@ -515,7 +515,9 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
   const storageJob = buildClipStorageJob(job, index, total);
   const aiProvider = "openai";
   const thumbnailText = await generateThumbnailText({ job: storageJob, output, promptTemplate: prompt, aiProvider });
-  const frameQuoteText = await generateFrameQuoteText({ job: storageJob, output, promptTemplate: prompt, aiProvider });
+  const frameQuoteText = shouldUseLowerThird(video, options)
+    ? await generateFrameQuoteText({ job: storageJob, output, promptTemplate: prompt, aiProvider })
+    : "";
   output = { ...output, thumbnailText, frameQuoteText };
 
   const effectsResult = await applyVideoEffects({
@@ -524,6 +526,7 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
     output,
     options: {
       ...options,
+      frameTitle: thumbnailText,
       lowerThirdText: frameQuoteText
     }
   });
@@ -563,7 +566,7 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
     thumbnailPath: thumbnail.path,
     text: thumbnail.text
   }).catch((error) => {
-    console.warn(`Intro thumbnail dilewati: ${error.message}`);
+    console.warn(`Intro TTS dilewati: ${error.message}`);
     return null;
   });
   if (thumbnailIntro?.path) {
@@ -585,6 +588,7 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
         ttsVoice: thumbnailIntro.ttsVoice || "",
         ttsSpeed: thumbnailIntro.ttsSpeed || "",
         ttsVolume: thumbnailIntro.ttsVolume || "",
+        visualMode: thumbnailIntro.visualMode || "",
         transitionApplied: thumbnailIntro.transitionApplied === true,
         transitionPath: thumbnailIntro.transitionPath || "",
         transitionDurationSeconds: thumbnailIntro.transitionDurationSeconds || 0,
@@ -805,6 +809,13 @@ function summarizeClipResult(result) {
     tiktok_error: errors.tiktok || "",
     threads_error: errors.threads || ""
   };
+}
+
+function shouldUseLowerThird(video = {}, options = {}) {
+  const configured = options.useLowerThird ?? video.use_lower_third ?? config.videoEffects.lowerThirdEnabled;
+  if (configured === undefined || configured === null || configured === "") return false;
+  if (typeof configured === "boolean") return configured;
+  return ["1", "true", "yes", "on"].includes(String(configured).toLowerCase());
 }
 
 export function finalStatusFromClipResults(clipResults, publishEnabled) {

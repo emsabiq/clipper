@@ -24,10 +24,13 @@ def float_env(name, fallback):
 CANVAS_W = 1080
 CANVAS_H = 1920
 ROOT_DIR = Path(__file__).resolve().parent.parent
-GOLD = (255, 190, 18)
-DEEP_GOLD = (238, 130, 0)
-WHITE = (248, 248, 244)
+GOLD = (217, 164, 65)
+BRIGHT_GOLD = (242, 199, 102)
+DEEP_GOLD = (242, 185, 56)
+WHITE = (245, 245, 245)
+LIGHT_GRAY = (184, 184, 184)
 BLACK = (3, 3, 3)
+POSTER_TITLE_FALLBACK = "RAHASIA DI BALIK PERDEBATAN PROYEK ARTIS TERBONGKAR"
 TITLE_FRAME_ASSET = os.environ.get("THUMBNAIL_TITLE_FRAME_ASSET", "assets/branding/framejudulnew.png")
 TITLE_FRAME_SOURCE_ASSET = os.environ.get("THUMBNAIL_TITLE_FRAME_SOURCE_ASSET", "assets/branding/framejudulnew-source.png")
 TITLE_FRAME_WIDTH = int_env("THUMBNAIL_TITLE_FRAME_WIDTH", 940)
@@ -51,9 +54,9 @@ def normalize_brand(value):
 
 
 def clean_title(value):
-    text = clean_text(value, "BAGIAN INI BIKIN PENONTON BERHENTI SCROLL").upper()
+    text = clean_text(value, POSTER_TITLE_FALLBACK).upper()
     words = text.split()
-    return " ".join(words[:16]) or "BAGIAN INI BIKIN PENONTON BERHENTI SCROLL"
+    return " ".join(words[:16]) or POSTER_TITLE_FALLBACK
 
 
 def clean_quote(value):
@@ -63,11 +66,38 @@ def clean_quote(value):
     return " ".join(words[:11]).upper() or "GUE BARU SADAR SETELAH KEHILANGAN"
 
 
-def font_candidates():
+def font_candidates(role="headline"):
     env_font = os.environ.get("THUMBNAIL_FONT_FILE") or os.environ.get("VIDEO_LOWER_THIRD_FONT_FILE")
+    primary_env = env_font if role in {"headline", "cta"} else None
+    fonts_dir = ROOT_DIR / "assets" / "fonts"
+    role_candidates = {
+        "sans": [
+            str(fonts_dir / "Montserrat-Variable.ttf"),
+            r"C:\Windows\Fonts\Montserrat-SemiBold.ttf",
+            r"C:\Windows\Fonts\Montserrat-Medium.ttf",
+            r"C:\Windows\Fonts\bahnschrift.ttf",
+            r"C:\Windows\Fonts\segoeui.ttf",
+        ],
+        "logo": [
+            str(fonts_dir / "Poppins-Bold.ttf"),
+            r"C:\Windows\Fonts\Poppins-Bold.ttf",
+            r"C:\Windows\Fonts\arialbd.ttf",
+        ],
+        "cta": [
+            r"C:\Windows\Fonts\BebasNeue-Regular.otf",
+            str(fonts_dir / "Oswald-Variable.ttf"),
+            r"C:\Windows\Fonts\impact.ttf",
+        ],
+        "headline": [
+            r"C:\Windows\Fonts\BebasNeue-Regular.otf",
+            str(fonts_dir / "Oswald-Variable.ttf"),
+            r"C:\Windows\Fonts\impact.ttf",
+        ],
+    }
     candidates = [
-        env_font,
-        r"C:\Windows\Fonts\impact.ttf",
+        primary_env,
+        *role_candidates.get(role, role_candidates["headline"]),
+        r"C:\Windows\Fonts\ARIALNB.TTF",
         r"C:\Windows\Fonts\arialbd.ttf",
         r"C:\Windows\Fonts\segoeuib.ttf",
         str(Path.home() / ".local/share/fonts/selawik/Selawik-Bold.ttf"),
@@ -79,12 +109,22 @@ def font_candidates():
     return [item for item in candidates if item]
 
 
-def load_font(size):
-    for item in font_candidates():
+def apply_variable_weight(font, weight):
+    if not weight:
+        return font
+    try:
+        font.set_variation_by_axes([weight])
+    except Exception:
+        pass
+    return font
+
+
+def load_font(size, role="headline", weight=None):
+    for item in font_candidates(role):
         try:
             path = Path(item)
             if path.exists():
-                return ImageFont.truetype(str(path), size=size)
+                return apply_variable_weight(ImageFont.truetype(str(path), size=size), weight)
         except Exception:
             pass
     return ImageFont.load_default(size=size)
@@ -267,6 +307,199 @@ def draw_highlight(base, rect):
     base.alpha_composite(shine.filter(ImageFilter.GaussianBlur(5)))
 
 
+def bool_env(name, fallback=False):
+    value = os.environ.get(name)
+    if value is None or value == "":
+        return fallback
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def draw_glow_line(base, y, x1=110, x2=970, color=GOLD):
+    glow = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    gd = ImageDraw.Draw(glow)
+    gd.rounded_rectangle((x1, y - 3, x2, y + 3), radius=3, fill=(*color, 90))
+    base.alpha_composite(glow.filter(ImageFilter.GaussianBlur(7)))
+    draw = ImageDraw.Draw(base)
+    draw.line((x1, y, x2, y), fill=(*color, 210), width=2)
+    draw.ellipse(((x1 + x2) // 2 - 6, y - 6, (x1 + x2) // 2 + 6, y + 6), fill=(255, 246, 220, 245))
+
+
+def draw_centered_text(draw, text, y, font, fill, stroke_width=0, stroke_fill=(0, 0, 0, 0), x1=0, x2=CANVAS_W):
+    width, height = text_size(draw, text, font, stroke_width)
+    x = x1 + ((x2 - x1) - width) / 2
+    draw.text((x, y), text, font=font, fill=fill, stroke_width=stroke_width, stroke_fill=stroke_fill)
+    return height
+
+
+def tracked_text_width(draw, text, font, tracking=0):
+    chars = list(str(text or ""))
+    if not chars:
+        return 0
+    return sum(text_size(draw, char, font, 0)[0] for char in chars) + tracking * (len(chars) - 1)
+
+
+def draw_tracked_centered_text(draw, text, y, font, fill, tracking=0, x1=0, x2=CANVAS_W):
+    chars = list(str(text or ""))
+    total_w = tracked_text_width(draw, text, font, tracking)
+    x = x1 + ((x2 - x1) - total_w) / 2
+    for char in chars:
+        draw.text((x, y), char, font=font, fill=fill)
+        x += text_size(draw, char, font, 0)[0] + tracking
+    return text_size(draw, text, font, 0)[1]
+
+
+def fit_single_line(draw, text, max_width, max_size, min_size, role="headline", weight=None, tracking=0):
+    size = max_size
+    while size >= min_size:
+        font = load_font(size, role=role, weight=weight)
+        width = tracked_text_width(draw, text, font, tracking) if tracking else text_size(draw, text, font, 2)[0]
+        if width <= max_width:
+            return font
+        size -= 2
+    return load_font(min_size, role=role, weight=weight)
+
+
+def fit_poster_title(draw, title, max_width, max_height, max_size=94, min_size=52):
+    size = max_size
+    while size >= min_size:
+        font = load_font(size, role="headline")
+        lines = wrap_text(draw, title, font, max_width, max_lines=3)
+        line_gap = max(8, int(size * 0.07))
+        heights = [text_size(draw, line, font, 4)[1] for line in lines]
+        total_h = sum(heights) + line_gap * (len(lines) - 1)
+        width_ok = all(text_size(draw, line, font, 4)[0] <= max_width for line in lines)
+        if width_ok and total_h <= max_height:
+            return lines, font, line_gap, heights, total_h
+        size -= 2
+    font = load_font(min_size, role="headline")
+    lines = wrap_text(draw, title, font, max_width, max_lines=3)
+    line_gap = 8
+    heights = [text_size(draw, line, font, 4)[1] for line in lines]
+    total_h = sum(heights) + line_gap * (len(lines) - 1)
+    return lines, font, line_gap, heights, total_h
+
+
+def poster_title_lines(title):
+    words = clean_title(title).split()
+    sample = ["RAHASIA", "DI", "BALIK", "PERDEBATAN", "PROYEK", "ARTIS", "TERBONGKAR"]
+    if words == sample:
+        return ["RAHASIA DI BALIK", "PERDEBATAN PROYEK", "ARTIS TERBONGKAR"]
+    if len(words) >= 7:
+        first = " ".join(words[:3])
+        middle_count = max(2, min(4, len(words) - 5))
+        middle = " ".join(words[3:3 + middle_count])
+        last = " ".join(words[3 + middle_count:])
+        return [first, middle, last]
+    if len(words) >= 5:
+        return [" ".join(words[:2]), " ".join(words[2:4]), " ".join(words[4:])]
+    return wrap_text(ImageDraw.Draw(Image.new("RGBA", (CANVAS_W, CANVAS_H))), " ".join(words), load_font(86), 900, max_lines=3)
+
+
+def fit_poster_title_fonts(draw, lines, max_width, max_height):
+    sizes = [88, 110, 82]
+    while min(sizes) >= 46:
+        fonts = [load_font(size, role="headline") for size in sizes[:len(lines)]]
+        heights = [text_size(draw, line, font, 4)[1] for line, font in zip(lines, fonts)]
+        gaps = [-2, 0] if len(lines) >= 3 else [6]
+        total_h = sum(heights) + sum(gaps[:max(0, len(lines) - 1)])
+        width_ok = all(text_size(draw, line, font, 4)[0] <= max_width for line, font in zip(lines, fonts))
+        if width_ok and total_h <= max_height:
+            return fonts, gaps, heights, total_h
+        sizes = [size - 2 for size in sizes]
+    fonts = [load_font(max(42, size), role="headline") for size in sizes[:len(lines)]]
+    heights = [text_size(draw, line, font, 4)[1] for line, font in zip(lines, fonts)]
+    gaps = [-2, 0] if len(lines) >= 3 else [6]
+    total_h = sum(heights) + sum(gaps[:max(0, len(lines) - 1)])
+    return fonts, gaps, heights, total_h
+
+
+def cut_transparent_round_rect(image, rect, radius):
+    alpha = image.getchannel("A")
+    mask = Image.new("L", image.size, 0)
+    md = ImageDraw.Draw(mask)
+    md.rounded_rectangle(rect, radius=radius, fill=255)
+    alpha.paste(0, (0, 0), mask)
+    image.putalpha(alpha)
+
+
+def draw_podcast_reference_layout(canvas, title, transparent_video=False):
+    title = clean_title(title)
+    draw = ImageDraw.Draw(canvas)
+
+    if transparent_video:
+        cut_transparent_round_rect(canvas, (40, 228, 1040, 1024), 60)
+    else:
+        draw.rounded_rectangle((40, 228, 1040, 1024), radius=60, fill=(0, 0, 0, 244))
+
+    pill = (318, 128, 762, 196)
+    add_glow(canvas, pill, 30, GOLD, 100)
+    draw.rounded_rectangle(pill, radius=34, fill=(5, 5, 5, 225), outline=(*BRIGHT_GOLD, 245), width=3)
+    draw.ellipse((356, 158, 370, 172), fill=(255, 244, 206, 255))
+    label_font = fit_single_line(draw, "PODCAST HIGHLIGHT", 320, 28, 20, role="sans", weight=600, tracking=6)
+    draw_tracked_centered_text(draw, "PODCAST HIGHLIGHT", 151, label_font, BRIGHT_GOLD, tracking=6, x1=390, x2=724)
+
+    video_rect = (32, 216, 1048, 1038)
+    add_glow(canvas, video_rect, 64, GOLD, 125)
+    draw.rounded_rectangle(video_rect, radius=66, outline=(*GOLD, 245), width=4)
+    draw.rounded_rectangle((48, 232, 1032, 1022), radius=54, outline=(*GOLD, 130), width=2)
+    draw_highlight(canvas, video_rect)
+
+    title_area = (80, 1080, 1000, 1396)
+    lines = poster_title_lines(title)
+    fonts, gaps, heights, total_h = fit_poster_title_fonts(draw, lines, title_area[2] - title_area[0], title_area[3] - title_area[1])
+    y = title_area[1] + ((title_area[3] - title_area[1]) - total_h) // 2
+    for index, line in enumerate(lines):
+        fill = DEEP_GOLD if index == 1 else WHITE
+        h = draw_centered_text(
+            draw,
+            line,
+            y,
+            fonts[index],
+            fill,
+            stroke_width=4,
+            stroke_fill=(0, 0, 0, 235),
+            x1=title_area[0],
+            x2=title_area[2],
+        )
+        y += h + (gaps[index] if index < len(lines) - 1 else 0)
+
+    draw_glow_line(canvas, 1450, 130, 950)
+    brand_line = "PodFlask | Podcast Highlight | Viral Recap"
+    meta_font = fit_single_line(draw, brand_line, 760, 29, 19, role="sans", weight=500, tracking=3)
+    draw_tracked_centered_text(draw, brand_line, 1481, meta_font, GOLD, tracking=3)
+
+    logo_rect = (50, 1532, 276, 1770)
+    add_glow(canvas, logo_rect, 60, GOLD, 80)
+    draw.ellipse(logo_rect, fill=(5, 5, 5, 218), outline=(*BRIGHT_GOLD, 235), width=4)
+    logo_font = fit_single_line(draw, "PodFlask", 160, 42, 28, role="logo", weight=700)
+    pod_w, _ = text_size(draw, "Pod", logo_font, 0)
+    flask_w, _ = text_size(draw, "Flask", logo_font, 0)
+    logo_x = (logo_rect[0] + logo_rect[2] - pod_w - flask_w) / 2
+    logo_y = 1647
+    draw.text((logo_x, logo_y), "Pod", font=logo_font, fill=WHITE)
+    draw.text((logo_x + pod_w, logo_y), "Flask", font=logo_font, fill=GOLD)
+    subtitle_font = fit_single_line(draw, "Podcast Highlight", 150, 17, 12, role="sans", weight=500)
+    draw_centered_text(draw, "Podcast Highlight", 1697, subtitle_font, LIGHT_GRAY, x1=logo_rect[0], x2=logo_rect[2])
+
+    support_rect = (300, 1546, 1030, 1770)
+    add_glow(canvas, support_rect, 30, GOLD, 90)
+    draw.rounded_rectangle(support_rect, radius=34, fill=(0, 0, 0, 210), outline=(*GOLD, 220), width=3)
+    draw.line((390, 1588, 500, 1588), fill=(*GOLD, 130), width=2)
+    draw.line((850, 1588, 910, 1588), fill=(*GOLD, 130), width=2)
+    small_font = fit_single_line(draw, "SUPPORT PODFLASK", 330, 27, 18, role="sans", weight=600, tracking=5)
+    draw_tracked_centered_text(draw, "SUPPORT PODFLASK", 1573, small_font, GOLD, tracking=5, x1=support_rect[0], x2=support_rect[2])
+    cta_font = fit_single_line(draw, "LIKE • SHARE • COMMENT", 640, 62, 42, role="cta", weight=700, tracking=2)
+    draw_centered_text(draw, "LIKE  •  SHARE  •  COMMENT", 1630, cta_font, WHITE, 3, (0, 0, 0, 220), x1=support_rect[0], x2=support_rect[2])
+    join_font = fit_single_line(draw, "JOIN THE CONVERSATION", 430, 27, 18, role="sans", weight=500, tracking=5)
+    draw_tracked_centered_text(draw, "JOIN THE CONVERSATION", 1718, join_font, GOLD, tracking=5, x1=support_rect[0], x2=support_rect[2])
+
+    bottom_rect = (60, 1802, 1020, 1868)
+    draw.rounded_rectangle(bottom_rect, radius=28, fill=(0, 0, 0, 190), outline=(*GOLD, 190), width=2)
+    footer = "DENGARKAN • RESAPI • DAPATKAN INSPIRASI"
+    bottom_font = fit_single_line(draw, footer, 800, 25, 16, role="sans", weight=500, tracking=5)
+    draw_tracked_centered_text(draw, footer, 1822, bottom_font, GOLD, tracking=5, x1=bottom_rect[0], x2=bottom_rect[2])
+
+
 def add_vignette(image):
     overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
     px = overlay.load()
@@ -300,6 +533,12 @@ def save_jpeg_under_limit(image, output):
 
 def render_thumbnail(args):
     title = clean_title(args.title)
+    if not bool_env("THUMBNAIL_USE_SOURCE_IMAGE", False):
+        canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (*BLACK, 255))
+        draw_podcast_reference_layout(canvas, title, transparent_video=False)
+        save_jpeg_under_limit(canvas, args.output)
+        return
+
     base = Image.open(args.input).convert("RGB").resize((CANVAS_W, CANVAS_H), Image.Resampling.LANCZOS)
     base = ImageEnhance.Contrast(base).enhance(1.08)
     base = ImageEnhance.Color(base).enhance(1.10)
@@ -357,6 +596,12 @@ def render_thumbnail(args):
     save_jpeg_under_limit(canvas, args.output)
 
 
+def render_video_frame(args):
+    canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (*BLACK, 255))
+    draw_podcast_reference_layout(canvas, clean_title(args.title), transparent_video=True)
+    canvas.save(args.output, "PNG")
+
+
 def render_lower_third(args):
     quote = clean_quote(args.quote)
     brand = normalize_brand(args.brand or os.environ.get("VIDEO_LOWER_THIRD_BRAND"))
@@ -405,11 +650,17 @@ def main(argv):
     lower.add_argument("--quote", required=True)
     lower.add_argument("--brand", default="")
 
+    frame = sub.add_parser("video-frame")
+    frame.add_argument("--output", required=True)
+    frame.add_argument("--title", required=True)
+
     args = parser.parse_args(argv)
     if args.command == "thumbnail":
         render_thumbnail(args)
     elif args.command == "lower-third":
         render_lower_third(args)
+    elif args.command == "video-frame":
+        render_video_frame(args)
 
 
 if __name__ == "__main__":

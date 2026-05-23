@@ -25,10 +25,13 @@ const BORDER_OPACITY = clampOpacity(process.env.THUMBNAIL_BORDER_OPACITY, 0.85);
 const TEXT_OUTLINE_OPACITY = clampOpacity(process.env.THUMBNAIL_TEXT_OUTLINE_OPACITY, 0.85);
 const JPEG_Q = process.env.THUMBNAIL_JPEG_Q || "1";
 const INTRO_SECONDS = clampSeconds(process.env.THUMBNAIL_INTRO_SECONDS, 0.9);
+const INTRO_VISUAL_MODE = String(process.env.THUMBNAIL_IMAGE_INTRO_ENABLED || "").toLowerCase() === "true"
+  ? "thumbnail"
+  : "video";
 const TTS_PAD_SECONDS = clampDuration(process.env.THUMBNAIL_TTS_PAD_SECONDS, 0, 0, 2);
 const TTS_MAX_SECONDS = clampDuration(process.env.THUMBNAIL_TTS_MAX_SECONDS, 12, 1, 30);
 const DEFAULT_TRANSITION_ASSET = "assets/branding/transisi-thumbnail-to-content.mp4";
-const TRANSITION_ENABLED = boolValue(process.env.THUMBNAIL_TRANSITION_ENABLED, true);
+const TRANSITION_ENABLED = boolValue(process.env.THUMBNAIL_TRANSITION_ENABLED, false);
 const TRANSITION_ASSET = process.env.THUMBNAIL_TRANSITION_ASSET || DEFAULT_TRANSITION_ASSET;
 const TRANSITION_KEY_COLOR = sanitizeColor(process.env.THUMBNAIL_TRANSITION_KEY_COLOR, "0x000000");
 const TRANSITION_KEY_SIMILARITY = clampNumber(process.env.THUMBNAIL_TRANSITION_KEY_SIMILARITY, 0.18, 0, 1);
@@ -116,12 +119,14 @@ export async function generateThumbnail({ job, videoPath, text }) {
 
 export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, text = "" }) {
   if (!boolValue(process.env.THUMBNAIL_INTRO_ENABLED, true)) return null;
-  if (!videoPath || !thumbnailPath) return null;
-  if (!await fileExists(videoPath) || !await fileExists(thumbnailPath)) return null;
+  if (!videoPath) return null;
+  if (!await fileExists(videoPath)) return null;
+  if (INTRO_VISUAL_MODE === "thumbnail" && (!thumbnailPath || !await fileExists(thumbnailPath))) return null;
 
   await fs.mkdir(config.generatedVideoDir, { recursive: true });
   const introPath = path.join(config.generatedVideoDir, `${job.job_id}-thumb-intro.mp4`);
   const outputPath = path.join(config.generatedVideoDir, `${job.job_id}-with-thumb-intro.mp4`);
+  const introFramePath = path.join(config.generatedVideoDir, `${job.job_id}-tts-intro-frame.jpg`);
 
   const speech = await generateThumbnailSpeech({ job, text }).catch((error) => {
     console.warn(`TTS thumbnail dilewati: ${error.message}`);
@@ -137,8 +142,15 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
 
   await Promise.all([
     fs.rm(introPath, { force: true }).catch(() => {}),
-    fs.rm(outputPath, { force: true }).catch(() => {})
+    fs.rm(outputPath, { force: true }).catch(() => {}),
+    fs.rm(introFramePath, { force: true }).catch(() => {})
   ]);
+
+  const visual = await resolveIntroVisual({
+    videoPath,
+    thumbnailPath,
+    outputPath: introFramePath
+  });
 
   const audioInputArgs = speech?.path
     ? ["-i", speech.path]
@@ -153,7 +165,7 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
     "-loop", "1",
     "-framerate", "30",
     "-t", String(introSeconds),
-    "-i", thumbnailPath,
+    "-i", visual.path,
     ...audioInputArgs,
     "-map", "0:v:0",
     "-map", "1:a:0",
@@ -205,6 +217,7 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
     path: outputPath,
     introPath,
     durationSeconds: introSeconds,
+    visualMode: visual.mode,
     ttsApplied: Boolean(speech?.path),
     ttsAudioPath: speech?.path || "",
     ttsProvider: speech?.provider || "",
@@ -225,6 +238,23 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
     transitionKeySimilarity: transition?.keySimilarity ?? "",
     transitionKeyBlend: transition?.keyBlend ?? ""
   };
+}
+
+async function resolveIntroVisual({ videoPath, thumbnailPath, outputPath }) {
+  if (INTRO_VISUAL_MODE === "thumbnail" && thumbnailPath && await fileExists(thumbnailPath)) {
+    return { path: thumbnailPath, mode: "thumbnail" };
+  }
+
+  await runFfmpeg([
+    "-y",
+    "-ss", "0",
+    "-i", videoPath,
+    "-frames:v", "1",
+    "-vf", "scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920",
+    "-q:v", JPEG_Q,
+    outputPath
+  ]);
+  return { path: outputPath, mode: "video_first_frame" };
 }
 
 function buildFinalConcatFilter({ introSecondsArg, transition }) {
@@ -349,14 +379,14 @@ function buildTitleLayout(value) {
 }
 
 function normalizeTitleText(value) {
-  return String(value || "BAGIAN INI BIKIN PENONTON BERHENTI SCROLL")
+  return String(value || "RAHASIA DI BALIK PERDEBATAN PROYEK ARTIS TERBONGKAR")
     .replace(/[`"'*_#]/g, "")
     .replace(/\s+/g, " ")
     .trim()
     .toUpperCase()
     .split(/\s+/)
     .slice(0, MAX_TITLE_WORDS)
-    .join(" ") || "BAGIAN INI BIKIN PENONTON BERHENTI SCROLL";
+    .join(" ") || "RAHASIA DI BALIK PERDEBATAN PROYEK ARTIS TERBONGKAR";
 }
 
 function wrapText(value, maxChars, maxLines) {
@@ -416,6 +446,9 @@ async function resolveFontOption() {
   const home = process.env.HOME || "";
   const candidates = [
     process.env.THUMBNAIL_FONT_FILE,
+    "C:\\Windows\\Fonts\\BebasNeue-Regular.otf",
+    "C:\\Windows\\Fonts\\ARIALNB.TTF",
+    "C:\\Windows\\Fonts\\bahnschrift.ttf",
     "C:\\Windows\\Fonts\\arialbd.ttf",
     "C:\\Windows\\Fonts\\segoeuib.ttf",
     home ? path.join(home, ".local/share/fonts/selawik/Selawik-Bold.ttf") : "",
