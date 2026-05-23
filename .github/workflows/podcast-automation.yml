@@ -52,7 +52,7 @@ on:
         required: false
         default: "1"
       use_frame:
-        description: "Apply Emsa frame: true/false"
+        description: "Apply PodFlask frame: true/false"
         required: false
         default: "true"
       use_filter:
@@ -62,7 +62,7 @@ on:
       use_watermark:
         description: "Apply transparent logo watermark: true/false"
         required: false
-        default: "true"
+        default: "false"
       background_music_enabled:
         description: "Mix local backsound: 0/1"
         required: false
@@ -300,13 +300,19 @@ jobs:
       DOWNLOAD_COMPRESS_CRF: "22"
       FINAL_RENDER_CRF: "20"
       VIDEO_QUALITY_PROFILE: ${{ github.event.inputs.quality_profile || secrets.VIDEO_QUALITY_PROFILE || 'standard' }}
-      VIDEO_FRAME_ENABLED: ${{ github.event.inputs.use_frame || secrets.VIDEO_FRAME_ENABLED || 'true' }}
-      VIDEO_FILTER_ENABLED: ${{ github.event.inputs.use_filter || secrets.VIDEO_FILTER_ENABLED || 'true' }}
-      VIDEO_WATERMARK_ENABLED: ${{ github.event.inputs.use_watermark || secrets.VIDEO_WATERMARK_ENABLED || 'true' }}
-      VIDEO_LOWER_THIRD_ENABLED: ${{ secrets.VIDEO_LOWER_THIRD_ENABLED || 'true' }}
-      VIDEO_LOWER_THIRD_BRAND: ${{ secrets.VIDEO_LOWER_THIRD_BRAND || '@PodFlask | Podcast Highlight' }}
-      VIDEO_FRAME_ASSET: ${{ secrets.VIDEO_FRAME_ASSET || 'assets/branding/frame-1080x1920.png' }}
-      VIDEO_WATERMARK_ASSET: ${{ secrets.VIDEO_WATERMARK_ASSET || 'assets/branding/logo.png' }}
+      VIDEO_FRAME_ENABLED: ${{ github.event.inputs.use_frame || vars.VIDEO_FRAME_ENABLED || secrets.VIDEO_FRAME_ENABLED || 'true' }}
+      VIDEO_FILTER_ENABLED: ${{ github.event.inputs.use_filter || vars.VIDEO_FILTER_ENABLED || secrets.VIDEO_FILTER_ENABLED || 'true' }}
+      VIDEO_WATERMARK_ENABLED: ${{ github.event.inputs.use_watermark || vars.VIDEO_WATERMARK_ENABLED || secrets.VIDEO_WATERMARK_ENABLED || 'false' }}
+      VIDEO_DYNAMIC_FRAME_ENABLED: ${{ vars.VIDEO_DYNAMIC_FRAME_ENABLED || secrets.VIDEO_DYNAMIC_FRAME_ENABLED || 'true' }}
+      VIDEO_FRAME_CONTENT_WIDTH: ${{ vars.VIDEO_FRAME_CONTENT_WIDTH || secrets.VIDEO_FRAME_CONTENT_WIDTH || '986' }}
+      VIDEO_FRAME_CONTENT_HEIGHT: ${{ vars.VIDEO_FRAME_CONTENT_HEIGHT || secrets.VIDEO_FRAME_CONTENT_HEIGHT || '796' }}
+      VIDEO_FRAME_CONTENT_X: ${{ vars.VIDEO_FRAME_CONTENT_X || secrets.VIDEO_FRAME_CONTENT_X || '50' }}
+      VIDEO_FRAME_CONTENT_Y: ${{ vars.VIDEO_FRAME_CONTENT_Y || secrets.VIDEO_FRAME_CONTENT_Y || '243' }}
+      VIDEO_LOWER_THIRD_ENABLED: ${{ vars.VIDEO_LOWER_THIRD_ENABLED || secrets.VIDEO_LOWER_THIRD_ENABLED || 'false' }}
+      VIDEO_LOWER_THIRD_BRAND: ${{ vars.VIDEO_LOWER_THIRD_BRAND || secrets.VIDEO_LOWER_THIRD_BRAND || '@PodFlask | Podcast Highlight' }}
+      PODFLASK_FRAME_ASSET: ${{ vars.PODFLASK_FRAME_ASSET || secrets.PODFLASK_FRAME_ASSET || 'assets/branding/frame.png' }}
+      VIDEO_FRAME_ASSET: ${{ vars.VIDEO_FRAME_ASSET || secrets.VIDEO_FRAME_ASSET || 'assets/branding/frame-1080x1920.png' }}
+      VIDEO_WATERMARK_ASSET: ${{ vars.VIDEO_WATERMARK_ASSET || secrets.VIDEO_WATERMARK_ASSET || 'assets/branding/logo.png' }}
       VIDEO_EFFECT_CRF: ${{ secrets.VIDEO_EFFECT_CRF || secrets.FINAL_RENDER_CRF || '27' }}
       VIDEO_EFFECT_PRESET: ${{ secrets.VIDEO_EFFECT_PRESET || 'veryfast' }}
       BACKGROUND_MUSIC_ENABLED: ${{ github.event.inputs.background_music_enabled || secrets.BACKGROUND_MUSIC_ENABLED || '1' }}
@@ -336,7 +342,11 @@ jobs:
       DEEPGRAM_TTS_PRONUNCIATION_ENABLED: ${{ vars.DEEPGRAM_TTS_PRONUNCIATION_ENABLED || secrets.DEEPGRAM_TTS_PRONUNCIATION_ENABLED || 'true' }}
       THUMBNAIL_TTS_VOLUME: ${{ secrets.THUMBNAIL_TTS_VOLUME || '1.85' }}
       DEEPGRAM_TTS_TIMEOUT_SECONDS: ${{ secrets.DEEPGRAM_TTS_TIMEOUT_SECONDS || '45' }}
-      THUMBNAIL_TRANSITION_ENABLED: ${{ vars.THUMBNAIL_TRANSITION_ENABLED || secrets.THUMBNAIL_TRANSITION_ENABLED || 'true' }}
+      THUMBNAIL_INTRO_FREEZE_SEEK_SECONDS: ${{ vars.THUMBNAIL_INTRO_FREEZE_SEEK_SECONDS || secrets.THUMBNAIL_INTRO_FREEZE_SEEK_SECONDS || '0.8' }}
+      THUMBNAIL_IMAGE_INTRO_ENABLED: ${{ vars.THUMBNAIL_IMAGE_INTRO_ENABLED || secrets.THUMBNAIL_IMAGE_INTRO_ENABLED || 'false' }}
+      THUMBNAIL_USE_SOURCE_IMAGE: ${{ vars.THUMBNAIL_USE_SOURCE_IMAGE || secrets.THUMBNAIL_USE_SOURCE_IMAGE || 'false' }}
+      THUMBNAIL_FONT_FILE: ${{ vars.THUMBNAIL_FONT_FILE || secrets.THUMBNAIL_FONT_FILE || 'assets/fonts/BebasNeue-Regular.otf' }}
+      THUMBNAIL_TRANSITION_ENABLED: ${{ vars.THUMBNAIL_TRANSITION_ENABLED || secrets.THUMBNAIL_TRANSITION_ENABLED || 'false' }}
       THUMBNAIL_TRANSITION_ASSET: ${{ vars.THUMBNAIL_TRANSITION_ASSET || secrets.THUMBNAIL_TRANSITION_ASSET || 'assets/branding/transisi-thumbnail-to-content.mp4' }}
       THUMBNAIL_TRANSITION_SPEED: ${{ vars.THUMBNAIL_TRANSITION_SPEED || secrets.THUMBNAIL_TRANSITION_SPEED || '1.28' }}
       THUMBNAIL_TRANSITION_KEY_COLOR: ${{ vars.THUMBNAIL_TRANSITION_KEY_COLOR || secrets.THUMBNAIL_TRANSITION_KEY_COLOR || '0x000000' }}
