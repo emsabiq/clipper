@@ -264,7 +264,15 @@ export async function applyVideoEffects({ job, video, output, options = {} }) {
     "-crf",
     String(config.videoEffects.crf),
     "-pix_fmt",
-    "yuv420p"
+    "yuv420p",
+    "-bf",
+    "0",
+    "-g",
+    "60",
+    "-enc_time_base:v",
+    "1:30",
+    "-video_track_timescale",
+    "30"
   );
 
   if (hasAudio) {
@@ -285,8 +293,12 @@ export async function applyVideoEffects({ job, video, output, options = {} }) {
   }
 
   args.push(
+    "-muxpreload",
+    "0",
+    "-muxdelay",
+    "0",
     "-avoid_negative_ts",
-    "make_zero",
+    "disabled",
     "-movflags",
     "+faststart",
     "-shortest",
