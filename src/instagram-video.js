@@ -84,7 +84,7 @@ async function transcodeInstagramVideo({ sourcePath, targetPath, videoBitrate, a
   ]);
 }
 
-async function extractInstagramCover({ sourcePath, targetPath }) {
+async function extractSocialCover({ sourcePath, targetPath }) {
   await fs.mkdir(path.dirname(targetPath), { recursive: true });
   await runFfmpeg([
     "-y",
@@ -100,17 +100,25 @@ async function extractInstagramCover({ sourcePath, targetPath }) {
   ]);
 }
 
-export async function prepareInstagramCover({ job, sourcePath }) {
-  const coverName = `${job.job_id}-instagram-cover.jpg`;
+function normalizeCoverPlatform(platform) {
+  return String(platform || "social")
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "social";
+}
+
+export async function prepareSocialCover({ job, sourcePath, platform = "social" }) {
+  const normalizedPlatform = normalizeCoverPlatform(platform);
+  const coverName = `${job.job_id}-${normalizedPlatform}-cover.jpg`;
   const coverPath = path.join(config.thumbnailDir, coverName);
 
-  await extractInstagramCover({ sourcePath, targetPath: coverPath });
+  await extractSocialCover({ sourcePath, targetPath: coverPath });
   const coverUrl = await uploadThumbnailFile({
     thumbnailPath: coverPath,
     thumbnailName: coverName
   });
 
-  console.log("IG cover memakai frame pertama video:", {
+  console.log(`${normalizedPlatform.toUpperCase()} cover memakai frame pertama video:`, {
     coverName,
     coverUrl: coverUrl || "",
     source: path.basename(sourcePath)
@@ -121,6 +129,14 @@ export async function prepareInstagramCover({ job, sourcePath }) {
     coverName,
     coverUrl
   };
+}
+
+export async function prepareInstagramCover({ job, sourcePath }) {
+  return prepareSocialCover({ job, sourcePath, platform: "instagram" });
+}
+
+export async function prepareFacebookCover({ job, sourcePath }) {
+  return prepareSocialCover({ job, sourcePath, platform: "facebook" });
 }
 
 export async function prepareInstagramVideo({ job, sourcePath, currentVideoUrl }) {

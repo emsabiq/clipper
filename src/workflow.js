@@ -11,7 +11,7 @@ import { stripCaptionSourceCredit } from "./caption-policy.js";
 import { generateThumbnail, prependThumbnailIntro } from "./thumbnail.js";
 import { fileExists, uploadHistoryFile, uploadJobFiles, validatePublicUrl } from "./uploader.js";
 import { publishReel } from "./instagram.js";
-import { prepareInstagramCover, prepareInstagramVideo } from "./instagram-video.js";
+import { prepareFacebookCover, prepareInstagramCover, prepareInstagramVideo } from "./instagram-video.js";
 import { publishToFacebook } from "./facebook.js";
 import { buildYoutubeMetadata, isYoutubeQuotaError, publishToYoutube } from "./youtube-publisher.js";
 import { publishToTikTok } from "./tiktok.js";
@@ -1009,12 +1009,20 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail, publi
     platformResults.facebook = await publishPlatform("facebook", platformResults, job.job_id, async () => {
       if (!upload.videoUrl) throw new Error("PUBLIC_BASE_URL/SFTP wajib valid sebelum publish Facebook.");
       await updateJob(job.job_id, { facebook_status: "processing", facebook_error: "" });
+      const facebookCover = await prepareFacebookCover({
+        job,
+        sourcePath: output.finalAbsPath
+      });
+      await updateJob(job.job_id, {
+        facebook_cover_path: facebookCover.coverPath || "",
+        facebook_cover_url: facebookCover.coverUrl || ""
+      });
       return publishToFacebook({
         videoUrl: upload.videoUrl,
         videoPath: output.finalAbsPath,
         title: output.title || job.source_title || "Podcast Clip",
         description: socialCaption,
-        thumbnailPath: thumbnail?.path || ""
+        thumbnailPath: facebookCover.coverPath || thumbnail?.path || ""
       });
     });
   }

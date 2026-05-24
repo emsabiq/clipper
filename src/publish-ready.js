@@ -14,7 +14,7 @@ import { stripCaptionSourceCredit } from "./caption-policy.js";
 import { clearYoutubeQuotaExceeded, markYoutubeQuotaExceeded, youtubeQuotaCooldown } from "./youtube-quota.js";
 import { writeJobDiagnostic } from "./diagnostics.js";
 import { enabledPublishPlatformsFromConfig, selectPublishPlatforms } from "./publish-mode.js";
-import { prepareInstagramCover } from "./instagram-video.js";
+import { prepareFacebookCover, prepareInstagramCover } from "./instagram-video.js";
 
 function argValue(name, fallback = "") {
   const index = process.argv.indexOf(name);
@@ -213,8 +213,8 @@ if (publishDecision.mode !== "all" && !publishDecision.hasSelectedPlatform) {
   process.exit(0);
 }
 
-if (!config.youtube.enabled && !config.instagram.enabled && !config.tiktok.enabled && !config.threads.enabled) {
-  console.error("Tidak ada platform aktif. Aktifkan YOUTUBE_UPLOAD_ENABLED, INSTAGRAM_UPLOAD_ENABLED, TIKTOK_UPLOAD_ENABLED, atau THREADS_UPLOAD_ENABLED.");
+if (!config.youtube.enabled && !config.facebook.enabled && !config.instagram.enabled && !config.tiktok.enabled && !config.threads.enabled) {
+  console.error("Tidak ada platform aktif. Aktifkan YOUTUBE_UPLOAD_ENABLED, FACEBOOK_UPLOAD_ENABLED, INSTAGRAM_UPLOAD_ENABLED, TIKTOK_UPLOAD_ENABLED, atau THREADS_UPLOAD_ENABLED.");
   process.exit(1);
 }
 
@@ -388,12 +388,19 @@ try {
   if (publishDecision.platforms.facebook && !facebook) {
     const publishedFacebook = await publishReadyPlatform("facebook", job.job_id, platformErrors, quotaExceeded, async () => {
       if (!job.public_video_url) throw new Error("public_video_url kosong, Facebook butuh URL video publik dari remote storage.");
+      const facebookCover = videoPath
+        ? await prepareFacebookCover({ job, sourcePath: videoPath })
+        : { coverPath: "", coverUrl: "" };
+      await patchItem("jobs", job.job_id, {
+        facebook_cover_path: facebookCover.coverPath || job.facebook_cover_path || "",
+        facebook_cover_url: facebookCover.coverUrl || job.facebook_cover_url || ""
+      });
       return publishToFacebook({
         videoUrl: job.public_video_url,
         videoPath,
         title: job.source_title || "Podcast Clip",
         description: socialCaption,
-        thumbnailPath
+        thumbnailPath: facebookCover.coverPath || thumbnailPath
       });
     });
     if (publishedFacebook) facebook = publishedFacebook;
