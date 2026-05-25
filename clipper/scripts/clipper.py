@@ -88,6 +88,65 @@ def parse_keys_from_env(*names):
     return list(dict.fromkeys(keys))
 
 
+def parse_list_env(*names):
+    values = []
+    for name in names:
+        raw = os.environ.get(name, "")
+        values.extend([item.strip() for item in re.split(r"[\n,|;]+", raw) if item.strip()])
+    return list(dict.fromkeys(values))
+
+
+def normalize_channel_value(value=""):
+    text = str(value or "").strip().lower()
+    text = re.sub(r"^https?://(?:www\.)?(?:youtube\.com|youtu\.be)/", "", text)
+    text = re.sub(r"^channel:", "", text)
+    text = text.lstrip("@")
+    text = re.sub(r"[^a-z0-9]+", " ", text)
+    return text.strip()
+
+
+def blocked_channel_terms():
+    return [
+        normalize_channel_value(item)
+        for item in parse_list_env(
+            "AUTO_DISCOVER_BLOCKED_CHANNELS",
+            "AUTO_DISCOVER_BLOCKED_CHANNEL_HANDLES",
+            "AUTO_DISCOVER_BLOCKED_CHANNEL_IDS",
+            "YOUTUBE_BLOCKED_CHANNELS",
+        )
+        if normalize_channel_value(item)
+    ]
+
+
+def blocked_channel_match(info):
+    terms = blocked_channel_terms()
+    if not terms:
+        return ""
+
+    values = [
+        normalize_channel_value(info.get("channel")),
+        normalize_channel_value(info.get("uploader")),
+        normalize_channel_value(info.get("channel_id")),
+        normalize_channel_value(info.get("uploader_id")),
+        normalize_channel_value(info.get("channel_url")),
+        normalize_channel_value(info.get("uploader_url")),
+    ]
+    values = [value for value in values if value]
+
+    for term in terms:
+        for value in values:
+            if value == term or term in value or value in term:
+                return term
+    return ""
+
+
+def assert_not_blocked_channel(info):
+    blocked = blocked_channel_match(info)
+    if blocked:
+        channel = info.get("channel") or info.get("uploader") or info.get("channel_id") or "unknown"
+        raise RuntimeError(f"Channel YouTube diblokir dari workflow: {channel} ({blocked})")
+
+
 def cfg():
     transcribe_provider = os.environ.get("TRANSCRIBE_PROVIDER", "deepgram").strip().lower()
     if transcribe_provider not in {"offline", "auto", "deepgram"}:
@@ -321,7 +380,9 @@ def ytdlp_common_args():
 
 def get_video_info(url):
     result = run_ytdlp(["-J", "--skip-download", "--no-warnings", url], capture=True)
-    return json.loads(result.stdout)
+    info = json.loads(result.stdout)
+    assert_not_blocked_channel(info)
+    return info
 
 
 def language_candidates(info, preferred):
