@@ -92,13 +92,16 @@ export async function setYoutubeThumbnail({ videoId, thumbnailPath, accessToken 
 export async function publishToYoutube({ videoPath, title, description, tags = [], thumbnailPath }) {
   const accessToken = await getYoutubeAccessToken();
   const stat = await fsp.stat(videoPath);
+  const snippet = {
+    title: normalizeTitle(title),
+    description: normalizeDescription(description),
+    categoryId: config.youtube.categoryId || "22"
+  };
+  if (config.youtube.tagsEnabled) {
+    snippet.tags = normalizeTags(tags);
+  }
   const metadata = {
-    snippet: {
-      title: normalizeTitle(title),
-      description: normalizeDescription(description),
-      tags: normalizeTags(tags),
-      categoryId: config.youtube.categoryId || "22"
-    },
+    snippet,
     status: {
       privacyStatus: normalizePrivacyStatus(config.youtube.privacyStatus),
       selfDeclaredMadeForKids: false
@@ -213,14 +216,14 @@ export function buildYoutubeMetadata({ job, output, caption }) {
   return {
     title: rawTitle,
     description,
-    tags: normalizeTags([
+    tags: config.youtube.tagsEnabled ? normalizeTags([
       ...config.youtube.tags,
       ...dynamicTags,
       theme,
       person,
       source.sourceChannel,
       ...keywordsFromText(`${hook} ${person} ${theme} ${source.sourceTitle} ${source.sourceChannel} ${output.title || ""} ${output.hook || ""}`)
-    ])
+    ]) : []
   };
 }
 

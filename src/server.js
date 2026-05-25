@@ -79,6 +79,16 @@ const envGroups = [
     ]
   },
   {
+    id: "discovery",
+    title: "YouTube Discovery",
+    fields: [
+      field("AUTO_DISCOVER_BLOCKED_CHANNELS", "Blocked channels"),
+      field("AUTO_DISCOVER_CHANNEL_HANDLES", "Channel handles"),
+      field("AUTO_DISCOVER_QUERY", "Search queries"),
+      field("AUTO_DISCOVER_DAILY_QUERY", "Daily query")
+    ]
+  },
+  {
     id: "remote",
     title: "Remote Storage",
     fields: [
@@ -189,6 +199,7 @@ const envGroups = [
       field("YOUTUBE_DAILY_UPLOAD_LIMIT", "Daily upload limit"),
       field("YOUTUBE_PRIVACY_STATUS", "Privacy status"),
       field("YOUTUBE_CATEGORY_ID", "Category ID"),
+      field("YOUTUBE_TAGS_ENABLED", "Tags enabled"),
       field("YOUTUBE_TAGS", "Tags"),
       field("YOUTUBE_TITLE_PREFIX", "Title prefix")
     ]

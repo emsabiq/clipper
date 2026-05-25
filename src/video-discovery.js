@@ -10,6 +10,7 @@ import { todayDate } from "./job-id.js";
 import { extractYoutubeVideoId } from "./youtube.js";
 import { getYoutubeAccessToken } from "./youtube-publisher.js";
 import { clearYoutubeQuotaExceeded, markYoutubeQuotaExceeded, youtubeQuotaCooldown } from "./youtube-quota.js";
+import { blockedChannelMatch, isBlockedChannelItem } from "./channel-blocklist.js";
 
 const DEFAULT_QUERIES = [
   "podcast indonesia hari ini",
@@ -277,6 +278,7 @@ function isTrustedPodcastChannelSource(item) {
 }
 
 function isPodcastCandidate(item) {
+  if (isBlockedChannelItem(item)) return false;
   const text = candidateText(item);
   if (POLITICAL_TOPIC_RE.test(text)) return false;
   if (NON_PODCAST_NOISE_RE.test(text) && !PODCAST_FORMAT_RE.test(text)) return false;
@@ -976,7 +978,15 @@ async function selectDiscoveredCandidates(rawCandidates, options, addCount, mode
     : mode === "today_trending" ? isTrendingPodcastCandidate
     : ["best_available", "daily_api_search"].includes(mode) ? isTopicCandidate : isViralCandidate;
   const ranked = rawCandidates
-    .filter((item) => filter(item, options))
+    .filter((item) => {
+      const blocked = blockedChannelMatch(item);
+      if (blocked) {
+        const channel = item.channel || item.uploader || item.channelTitle || item.discovery_query || "unknown";
+        console.log(`AUTO DISCOVERY kandidat dilewati karena channel diblokir (${blocked}): ${channel}`);
+        return false;
+      }
+      return filter(item, options);
+    })
     .map((item) => ({
       ...item,
       discovery_score: scoreCandidate(item),

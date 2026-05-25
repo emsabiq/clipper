@@ -62,6 +62,7 @@ function collection_items($jobs) {
       'updated_at' => $updated,
       'source_url' => (string) ($job['source_url'] ?? $job['url'] ?? ''),
       'download_url' => '?download=' . rawurlencode($jobId),
+      'download_filename' => safe_filename($jobId . '.mp4'),
     ];
   }
 
@@ -842,7 +843,15 @@ function status_label($item) {
                     <span class="icon">DL</span>
                     Unduh
                   </a>
-                  <button class="btn blue" type="button" data-upload="youtube" data-url="https://www.youtube.com/upload">
+                  <button
+                    class="btn blue"
+                    type="button"
+                    data-upload="youtube"
+                    data-url="https://www.youtube.com/upload"
+                    data-file-url="<?= e($item['download_url']) ?>"
+                    data-filename="<?= e($item['download_filename']) ?>"
+                    data-title="<?= e($item['title']) ?>"
+                  >
                     <span class="icon">YT</span>
                     YouTube
                   </button>
@@ -914,6 +923,32 @@ function status_label($item) {
         return ok;
       }
 
+      async function shareVideoFile(button, card) {
+        if (!navigator.share || !navigator.canShare || typeof File === "undefined") return false;
+
+        const fileUrl = button.dataset.fileUrl || "";
+        if (!fileUrl) return false;
+
+        showToast("Menyiapkan file video...");
+        const response = await fetch(fileUrl, { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const blob = await response.blob();
+        const file = new File([blob], button.dataset.filename || "podflask-video.mp4", {
+          type: blob.type || "video/mp4"
+        });
+        const shareFiles = { files: [file] };
+        if (!navigator.canShare(shareFiles)) return false;
+
+        const textarea = card?.querySelector("textarea");
+        await navigator.share({
+          files: [file],
+          title: button.dataset.title || "PodFlask video",
+          text: textarea ? textarea.value : ""
+        });
+        return true;
+      }
+
       function applyFilters() {
         const query = (searchInput?.value || "").trim().toLowerCase();
         let shown = 0;
@@ -944,8 +979,23 @@ function status_label($item) {
         if (uploadButton) {
           const card = uploadButton.closest("[data-card]");
           const url = uploadButton.dataset.url || "";
-          if (url) window.open(url, "_blank", "noopener");
+          const platform = uploadButton.dataset.upload || "";
           if (card) copyCaptionFromCard(card);
+          if (platform === "youtube") {
+            shareVideoFile(uploadButton, card)
+              .then((shared) => {
+                if (!shared && url) {
+                  window.open(url, "_blank", "noopener");
+                  showToast("Share file tidak didukung. YouTube upload dibuka.");
+                }
+              })
+              .catch(() => {
+                if (url) window.open(url, "_blank", "noopener");
+                showToast("Share file gagal. YouTube upload dibuka.");
+              });
+            return;
+          }
+          if (url) window.open(url, "_blank", "noopener");
         }
       });
 

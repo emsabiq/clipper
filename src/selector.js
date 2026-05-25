@@ -2,6 +2,7 @@ import { readJson, patchItem, upsertItem } from "./storage.js";
 import { todayDate, createJobId, makeId } from "./job-id.js";
 import { extractYoutubeVideoId } from "./youtube.js";
 import { hasProcessedVideo } from "./history.js";
+import { blockedChannelMatch } from "./channel-blocklist.js";
 
 const selectableStatuses = new Set(["queued", "failed", "retry"]);
 
@@ -80,6 +81,14 @@ export async function selectNextVideo(options = {}) {
   candidates = orderCandidates(candidates, options.randomize === true);
 
   for (const video of candidates) {
+    const blocked = blockedChannelMatch(video);
+    if (blocked) {
+      await patchItem("videos", video.id, {
+        status: "skipped_blocked_channel",
+        error_message: `Channel diblokir dari auto workflow: ${blocked}`
+      });
+      continue;
+    }
     if (!options.forceReprocess && !video.force_reprocess && await hasProcessedVideo(video)) {
       await patchItem("videos", video.id, { status: "skipped_duplicate" });
       continue;
