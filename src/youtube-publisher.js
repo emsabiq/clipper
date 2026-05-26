@@ -95,7 +95,7 @@ export async function publishToYoutube({ videoPath, title, description, tags = [
   const snippet = {
     title: normalizeTitle(title),
     description: normalizeDescription(description),
-    categoryId: config.youtube.categoryId || "22"
+    categoryId: config.youtube.categoryId || "24"
   };
   if (config.youtube.tagsEnabled) {
     snippet.tags = normalizeTags(tags);
