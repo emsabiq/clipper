@@ -160,7 +160,7 @@ function buildConfig() {
       refreshToken: process.env.YOUTUBE_REFRESH_TOKEN || "",
       redirectUri: cleanText(process.env.YOUTUBE_REDIRECT_URI),
       privacyStatus: cleanText(process.env.YOUTUBE_PRIVACY_STATUS || "public"),
-      categoryId: cleanText(process.env.YOUTUBE_CATEGORY_ID || "22"),
+      categoryId: cleanText(process.env.YOUTUBE_CATEGORY_ID || "24"),
       tagsEnabled: boolEnv("YOUTUBE_TAGS_ENABLED", false),
       tags: listEnv("YOUTUBE_TAGS"),
       titlePrefix: cleanText(process.env.YOUTUBE_TITLE_PREFIX),

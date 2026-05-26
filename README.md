@@ -890,7 +890,7 @@ YOUTUBE_REFRESH_TOKEN=
 YOUTUBE_REDIRECT_URI=
 YOUTUBE_OAUTH_STATE_SECRET=
 YOUTUBE_PRIVACY_STATUS=public
-YOUTUBE_CATEGORY_ID=22
+YOUTUBE_CATEGORY_ID=24
 YOUTUBE_TAGS=podcast,shorts,indonesia
 YOUTUBE_CUSTOM_THUMBNAIL_ENABLED=true
 YOUTUBE_THUMBNAIL_UPLOAD_ATTEMPTS=1
@@ -1289,7 +1289,7 @@ Status privacy upload YouTube: `public`, `unlisted`, atau `private`.
 
 #### `YOUTUBE_CATEGORY_ID`
 
-Kategori video YouTube.
+Kategori video YouTube. Default project ini memakai `24` untuk Hiburan / Entertainment.
 
 #### `YOUTUBE_TAGS`
 
