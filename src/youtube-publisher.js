@@ -280,6 +280,7 @@ function sanitizeYoutubeCaption(value = "") {
     .replace(/^\s*(?:kenapa\s+ini\s+menarik|poin)\s*:\s*/gim, "")
     .replace(/\b(?:dalam\s+video\s+ini|potongan\s+ini|video\s+ini\s+membahas)\b/giu, "")
     .replace(/\b(?:judi\s*online|judi|slot|togel|casino|taruhan|betting)\b/giu, "jalan pintas berisiko")
+    .replace(/\b(?:pinjol|pinjaman\s*online|paylater|riba)\b/giu, "risiko finansial")
     .replace(/\bSARA\b/giu, "isu perbedaan")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -668,6 +669,12 @@ const UNSAFE_TERMS = [
   "casino",
   "taruhan",
   "betting",
+  "pinjol",
+  "pinjamanonline",
+  "paylater",
+  "riba",
+  "utangonline",
+  "kreditonline",
   "sara",
   "rasis",
   "porn",

@@ -11,6 +11,13 @@ import { extractYoutubeVideoId } from "./youtube.js";
 import { getYoutubeAccessToken } from "./youtube-publisher.js";
 import { clearYoutubeQuotaExceeded, markYoutubeQuotaExceeded, youtubeQuotaCooldown } from "./youtube-quota.js";
 import { blockedChannelMatch, isBlockedChannelItem } from "./channel-blocklist.js";
+import {
+  automationQueueLinkLimit,
+  isAutomationSeriesVideo,
+  isQueueSeriesComplete,
+  queueSeriesTarget,
+  storedQueueSeriesSuccessCount
+} from "./queue-policy.js";
 
 const DEFAULT_QUERIES = [
   "podcast indonesia hari ini",
@@ -71,6 +78,9 @@ const MUSICIAN_TOPIC_RE = /musisi|penyanyi|vokalis|\bband\b|ariel|noah|ahmad\s*d
 const PODCAST_TOPIC_RE = new RegExp(`${PODCAST_FORMAT_RE.source}|${MUSICIAN_TOPIC_RE.source}`, "i");
 const POLITICAL_TOPIC_RE = /politik|pilpres|pemilu|partai|dpr|mpr|presiden|wakil\s*presiden|menteri|kabinet|reshuffle|prabowo|jokowi|gibran|anies|ganjar|bawaslu|kpu|kompastv|kompas\s*tv|inews|cnn\s*indonesia|forum\s*keadilan|akbar\s*faizal|total\s*politik|tempo(?:dotco)?|bocor\s*alus|brin/i;
 const NON_PODCAST_NOISE_RE = /official\s*music\s*video|official\s*audio|video\s*klip|lirik|lyrics|karaoke|konser|live\s*session|trailer|teaser|sinetron|drama|full\s*movie|film\s*pendek|gameplay|live\s*stream\s*game|highlight\s*bola/i;
+const UNSAFE_CONTENT_RE = /judi|slot|togel|casino|taruhan|betting|pinjol|pinjaman\s*online|paylater|riba|sara|rasis|ujaran\s*kebencian|porn|porno|bokep|narkoba|ganja|sabu|teroris|bom/i;
+const LOW_QUALITY_CONTENT_RE = /gosip|hot\s*news|breaking\s*news|infotainment|skandal|bocor|aib|sensasi|clickbait|prank|reaction\s*murahan/i;
+const SINGING_PERFORMANCE_RE = /sedang\s*nyanyi|lagi\s*nyanyi|menyanyi|bernyanyi|nyanyiin|dinyanyikan|karaoke|cover\s*lagu|live\s*music|live\s*performance|konser|panggung|lirik|lyrics|reff|chorus/i;
 const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
 const DISCOVERY_CACHE_FILE = "discovery-cache.json";
 const AUTO_DISCOVERY_SELECTABLE_STATUSES = new Set(["queued", "failed", "retry"]);
@@ -127,7 +137,17 @@ function isAutoDiscoveredVideo(video) {
 }
 
 function autoDiscoveryDailyQueueLimit() {
-  return numberEnv("AUTO_DISCOVER_DAILY_QUEUE_LIMIT", 20, 0, 1000);
+  return numberEnv("AUTO_DISCOVER_DAILY_QUEUE_LIMIT", 5, 0, 1000);
+}
+
+function countOpenAutomationQueue(videos) {
+  return videos.filter((video) => {
+    if (!isAutoDiscoveredVideo(video)) return false;
+    if (!isAutomationSeriesVideo(video)) return false;
+    if (video.active === false) return false;
+    if (!AUTO_DISCOVERY_SELECTABLE_STATUSES.has(video.status || "queued")) return false;
+    return !isQueueSeriesComplete(video, storedQueueSeriesSuccessCount(video));
+  }).length;
 }
 
 function countDailyAutoDiscoveryQueue(videos, targetDate) {
@@ -154,6 +174,9 @@ async function expireOldAutoDiscoveryQueue(targetDate) {
   const nextVideos = videos.map((video) => {
     if (!isAutoDiscoveredVideo(video)) return video;
     if (!AUTO_DISCOVERY_SELECTABLE_STATUSES.has(video.status || "queued")) return video;
+    if (isAutomationSeriesVideo(video) && !isQueueSeriesComplete(video, storedQueueSeriesSuccessCount(video))) {
+      return video;
+    }
 
     const videoDay = daySerial(video.target_date);
     if (videoDay === null || videoDay + ttlDays > targetDay) return video;
@@ -281,6 +304,9 @@ function isPodcastCandidate(item) {
   if (isBlockedChannelItem(item)) return false;
   const text = candidateText(item);
   if (POLITICAL_TOPIC_RE.test(text)) return false;
+  if (UNSAFE_CONTENT_RE.test(text)) return false;
+  if (LOW_QUALITY_CONTENT_RE.test(text)) return false;
+  if (SINGING_PERFORMANCE_RE.test(text)) return false;
   if (NON_PODCAST_NOISE_RE.test(text) && !PODCAST_FORMAT_RE.test(text)) return false;
   return PODCAST_TOPIC_RE.test(text) || isTrustedPodcastChannelSource(item);
 }
@@ -1011,11 +1037,11 @@ function fallbackPasses(baseQueries, baseOptions) {
   const dailySearchOnly = boolEnv("AUTO_DISCOVER_DAILY_SEARCH_ONLY", true);
   const useBroadApi = useDailyApi && !dailySearchOnly;
   const channelOnly = boolEnv("AUTO_DISCOVER_CHANNEL_ONLY", false);
-  const dailyApiMaxResults = numberEnv("AUTO_DISCOVER_DAILY_SEARCH_RESULTS", 7, 1, 50);
-  const trendingMaxResults = numberEnv("AUTO_DISCOVER_TRENDING_MAX_RESULTS", 25, 1, 50);
-  const fallbackMaxResults = numberEnv("AUTO_DISCOVER_FALLBACK_MAX_RESULTS", 12, baseOptions.maxResults, 50);
+  const dailyApiMaxResults = numberEnv("AUTO_DISCOVER_DAILY_SEARCH_RESULTS", 5, 1, 50);
+  const trendingMaxResults = numberEnv("AUTO_DISCOVER_TRENDING_MAX_RESULTS", 5, 1, 50);
+  const fallbackMaxResults = numberEnv("AUTO_DISCOVER_FALLBACK_MAX_RESULTS", 5, baseOptions.maxResults, 50);
   const freshUploadDays = numberEnv("AUTO_DISCOVER_FRESH_UPLOAD_DAYS", 30, 1, 30);
-  const freshChannelMaxResults = numberEnv("AUTO_DISCOVER_CHANNEL_MAX_RESULTS", 10, 1, 25);
+  const freshChannelMaxResults = numberEnv("AUTO_DISCOVER_CHANNEL_MAX_RESULTS", 5, 1, 25);
   const trendingEnabled = boolEnv("AUTO_DISCOVER_TRENDING_ENABLED", true);
 
   const channelPass = {
@@ -1112,9 +1138,12 @@ export async function discoverAndQueueVideos(options = {}) {
   }
 
   const targetDate = options.targetDate || todayDate();
+  const automationSeries = options.automationSeries !== false;
   const queueMaintenance = await expireOldAutoDiscoveryQueue(targetDate);
-  const dailyQueueLimit = autoDiscoveryDailyQueueLimit();
-  const currentDailyQueue = countDailyAutoDiscoveryQueue(queueMaintenance.videos, targetDate);
+  const dailyQueueLimit = automationSeries ? automationQueueLinkLimit() : autoDiscoveryDailyQueueLimit();
+  const currentDailyQueue = automationSeries
+    ? countOpenAutomationQueue(queueMaintenance.videos)
+    : countDailyAutoDiscoveryQueue(queueMaintenance.videos, targetDate);
   const ignoreDailyQueueLimit = options.ignoreDailyQueueLimit === true;
   const remainingDailyQueueSlots = dailyQueueLimit > 0
     ? Math.max(0, dailyQueueLimit - currentDailyQueue)
@@ -1138,8 +1167,8 @@ export async function discoverAndQueueVideos(options = {}) {
     ...listEnv("AUTO_DISCOVER_QUERY", []),
     ...DEFAULT_QUERIES
   ]);
-  const maxResults = numberEnv("AUTO_DISCOVER_MAX_RESULTS", 20, 1, 25);
-  const requestedAddCount = numberEnv("AUTO_DISCOVER_ADD_COUNT", 20, 1, 50);
+  const maxResults = numberEnv("AUTO_DISCOVER_MAX_RESULTS", 5, 1, 25);
+  const requestedAddCount = numberEnv("AUTO_DISCOVER_ADD_COUNT", 5, 1, 50);
   const addCount = ignoreDailyQueueLimit
     ? requestedAddCount
     : Math.min(requestedAddCount, remainingDailyQueueSlots);
@@ -1219,11 +1248,15 @@ export async function discoverAndQueueVideos(options = {}) {
       use_frame: boolEnv("VIDEO_FRAME_ENABLED", true),
       use_filter: boolEnv("VIDEO_FILTER_ENABLED", true),
       use_watermark: boolEnv("VIDEO_WATERMARK_ENABLED", false),
+      automation_series: automationSeries,
+      manual_run: options.manualRun === true,
+      series_target_count: automationSeries ? queueSeriesTarget({}) : 0,
       notes: [
         `Auto discovery: ${item.discovery_query || "unknown"}`,
         `source=${item.discovery_source || "unknown"}`,
         `fallback=${item.discovery_fallback_mode || selectedPass || "strict"}`,
         `score=${item.discovery_score}`,
+        automationSeries ? `series_target=${queueSeriesTarget({})}` : "manual_adhoc=true",
         item.channel ? `channel=${item.channel}` : "",
         stats.views ? `views=${stats.views}` : "",
         stats.viewsPerHour ? `views_per_hour=${Math.round(stats.viewsPerHour)}` : ""

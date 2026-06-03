@@ -3,7 +3,7 @@ import path from "node:path";
 import { config, canPublish, shouldUploadToRemote } from "./config.js";
 import { ensureProjectDirs, patchItem, saveGeneratedJson } from "./storage.js";
 import { appendLog } from "./logger.js";
-import { appendHistory, publishedCountToday, youtubePublishedCountToday } from "./history.js";
+import { appendHistory, publishedCountToday, queueSeriesSuccessCount, youtubePublishedCountToday } from "./history.js";
 import { addVideo, createJobRecord, selectNextVideo, updateVideoStatus } from "./selector.js";
 import { runClipper } from "./clipper-runner.js";
 import { generateCaption, generateFrameQuoteText, generateThumbnailText } from "./caption.js";
@@ -24,6 +24,11 @@ import { discoverAndQueueVideos } from "./video-discovery.js";
 import { applyVideoEffects } from "./video-effects.js";
 import { writeJobDiagnostic } from "./diagnostics.js";
 import { enabledPublishPlatformsFromConfig, selectPublishPlatforms } from "./publish-mode.js";
+import {
+  isAutomationSeriesVideo,
+  queueSeriesTarget,
+  scheduledClipsPerRun
+} from "./queue-policy.js";
 
 export async function runWorkflow(options = {}) {
   await ensureProjectDirs();
@@ -87,7 +92,7 @@ export async function runWorkflow(options = {}) {
   }
 
   let discoveryResult = null;
-  const keepVideoQueued = !options.url && !options.scheduled;
+  const keepVideoQueued = false;
 
   if (options.url) {
     const selection = await createManualSelection(options);
@@ -108,6 +113,7 @@ export async function runWorkflow(options = {}) {
   let discoveredVideoIds = (discoveryResult?.added || [])
     .map((video) => video.id)
     .filter(Boolean);
+  if (options.scheduled) discoveredVideoIds = [];
   let recoveryDiscoveryAttempted = false;
   const failedSelections = [];
   const excludedVideoIds = new Set();
@@ -127,6 +133,7 @@ export async function runWorkflow(options = {}) {
       discoveredVideoIds = (discoveryResult?.added || [])
         .map((video) => video.id)
         .filter(Boolean);
+      if (options.scheduled) discoveredVideoIds = [];
 
       if (discoveredVideoIds.length) {
         selection = await selectQueuedWorkflowVideo({
@@ -207,6 +214,8 @@ async function createManualSelection(options) {
     use_music: options.useMusic,
     use_subtitle_highlight: options.useSubtitleHighlight,
     force_reprocess: options.forceReprocess === true,
+    automation_series: false,
+    manual_run: true,
     notes: "Ditambahkan dari CLI/manual run"
   });
   return selectNextVideo({
@@ -218,7 +227,7 @@ async function createManualSelection(options) {
 }
 
 function queueFailoverLimit() {
-  const configured = Number(process.env.QUEUE_FAILOVER_ATTEMPTS || process.env.MAX_SCHEDULED_POSTS_PER_DAY || 15);
+  const configured = Number(process.env.QUEUE_FAILOVER_ATTEMPTS || process.env.AUTOMATION_QUEUE_LINK_LIMIT || 5);
   if (!Number.isFinite(configured) || configured <= 0) return 15;
   return Math.min(Math.floor(configured), 50);
 }
@@ -238,7 +247,9 @@ async function selectQueuedWorkflowVideo({ options, excludedVideoIds, preferredV
     preferredVideoIds,
     excludeVideoIds: [...excludedVideoIds],
     forceReprocess: options.forceReprocess === true,
-    randomize: true
+    randomize: options.scheduled !== true,
+    seriesMode: options.scheduled === true,
+    excludeAutomationSeries: options.scheduled !== true
   });
 }
 
@@ -246,7 +257,10 @@ async function discoverQueuedVideos(options) {
   try {
     const discoveryResult = await discoverAndQueueVideos({
       theme: options.theme || config.defaultTheme,
-      targetDate: todayDate()
+      targetDate: todayDate(),
+      automationSeries: options.scheduled === true,
+      manualRun: options.scheduled !== true,
+      ignoreDailyQueueLimit: options.scheduled !== true
     });
     await appendLog("discovery_result", {
       skipped: Boolean(discoveryResult?.skipped),
@@ -345,9 +359,10 @@ async function processSelectedWorkflow({ selection, options, scheduledDailyLimit
       throw new Error("Clipper tidak menghasilkan file MP4 final.");
     }
 
+    const perRunClipLimit = options.scheduled ? scheduledClipsPerRun() : allOutputs.length;
     const remainingScheduledSlots = options.scheduled && options.publish && scheduledDailyLimit > 0
-      ? Math.max(0, scheduledDailyLimit - scheduledPostedToday)
-      : allOutputs.length;
+      ? Math.min(perRunClipLimit, Math.max(0, scheduledDailyLimit - scheduledPostedToday))
+      : perRunClipLimit;
     const outputs = allOutputs.slice(0, remainingScheduledSlots);
 
     if (allOutputs.length > outputs.length) {
@@ -439,6 +454,7 @@ async function processSelectedWorkflow({ selection, options, scheduledDailyLimit
     const final = finalStatusFromClipResults(clipResults, workflowPublishEnabled(options));
     const firstSuccess = clipResults.find((item) => item.ok);
     const lastPlatformResults = [...clipResults].reverse().find((item) => item.platformResults)?.platformResults || {};
+    const seriesPatch = await queueSeriesStatusPatch({ job, video, options, final });
 
     await updateJob(job.job_id, {
       status: final.status,
@@ -456,10 +472,13 @@ async function processSelectedWorkflow({ selection, options, scheduledDailyLimit
       public_video_url: firstSuccess?.upload?.videoUrl || "",
       public_thumbnail_url: firstSuccess?.upload?.thumbnailUrl || "",
       public_metadata_url: firstSuccess?.upload?.metadataUrl || "",
-      published_at: final.publishedClips > 0 ? new Date().toISOString() : ""
+      published_at: final.publishedClips > 0 ? new Date().toISOString() : "",
+      series_target_count: seriesPatch.patch?.series_target_count || job.series_target_count || 0,
+      series_success_count: seriesPatch.patch?.series_success_count ?? job.series_success_count ?? 0,
+      series_remaining_count: seriesPatch.patch?.series_remaining_count ?? 0
     });
 
-    await maybeUpdateVideoStatus(final.videoStatus, {
+    await maybeUpdateVideoStatus(seriesPatch.videoStatus || final.videoStatus, {
       youtube_video_id: lastPlatformResults.youtube?.videoId || video.youtube_video_id,
       youtube_url: lastPlatformResults.youtube?.url || "",
       instagram_media_id: lastPlatformResults.instagram?.mediaId || "",
@@ -468,7 +487,8 @@ async function processSelectedWorkflow({ selection, options, scheduledDailyLimit
       tiktok_publish_id: lastPlatformResults.tiktok?.publishId || "",
       threads_media_id: lastPlatformResults.threads?.mediaId || "",
       threads_url: lastPlatformResults.threads?.url || "",
-      error_message: final.errorMessage
+      error_message: seriesPatch.errorMessage ?? final.errorMessage,
+      ...seriesPatch.patch
     });
 
     await uploadHistoryIfPossible();
@@ -478,7 +498,9 @@ async function processSelectedWorkflow({ selection, options, scheduledDailyLimit
       clip_total: outputs.length,
       successful_clip_count: final.successfulClips,
       failed_clip_count: final.failedClips,
-      published_clip_count: final.publishedClips
+      published_clip_count: final.publishedClips,
+      series_success_count: seriesPatch.patch?.series_success_count,
+      series_target_count: seriesPatch.patch?.series_target_count
     });
 
     return {
@@ -488,6 +510,8 @@ async function processSelectedWorkflow({ selection, options, scheduledDailyLimit
       successful_clip_count: final.successfulClips,
       failed_clip_count: final.failedClips,
       published_clip_count: final.publishedClips,
+      series_success_count: seriesPatch.patch?.series_success_count,
+      series_target_count: seriesPatch.patch?.series_target_count,
       clips: clipResults.map(summarizeClipResult)
     };
   } catch (error) {
@@ -723,7 +747,8 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
       platformResults,
       status: primaryPublished ? "published" : publishStatus,
       clipIndex,
-      clipTotal: total
+      clipTotal: total,
+      options
     });
 
     return {
@@ -751,7 +776,7 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
   }
 
   const status = options.publish ? "dry_run" : "ready_to_publish";
-  await appendHistoryEntry({ job: storageJob, video, caption, output, upload, status, clipIndex, clipTotal: total });
+  await appendHistoryEntry({ job: storageJob, video, caption, output, upload, status, clipIndex, clipTotal: total, options });
   return {
     ok: true,
     clipIndex,
@@ -1153,18 +1178,56 @@ function buildMetadata({ job, video, theme, prompt, output, clipperResult, capti
 
 function youtubeDailyUploadLimit() {
   const value = Number(process.env.YOUTUBE_DAILY_UPLOAD_LIMIT);
-  if (!Number.isFinite(value)) return config.youtube.dailyUploadLimit || 6;
+  if (!Number.isFinite(value)) return config.youtube.dailyUploadLimit || 0;
   return Math.max(0, Math.floor(value));
 }
 
-async function appendHistoryEntry({ job, video, caption, output, upload, platformResults = {}, status, clipIndex = 1, clipTotal = 1 }) {
+async function queueSeriesStatusPatch({ job, video, options, final }) {
+  if (!(options.scheduled && isAutomationSeriesVideo(video))) {
+    return { patch: {}, videoStatus: "", errorMessage: undefined };
+  }
+
+  const currentCount = await queueSeriesSuccessCount(video);
+  const targetCount = queueSeriesTarget(video);
+  const nextCount = Math.min(targetCount, currentCount + Math.max(0, final.publishedClips || 0));
+  const completed = nextCount >= targetCount;
+  const now = new Date().toISOString();
+  const patch = {
+    automation_series: true,
+    queue_series: true,
+    series_target_count: targetCount,
+    series_success_count: nextCount,
+    series_remaining_count: Math.max(0, targetCount - nextCount),
+    last_series_job_id: job.job_id,
+    last_series_run_at: now
+  };
+
+  if (completed) {
+    patch.series_completed_at = video.series_completed_at || now;
+    return { patch, videoStatus: "published", errorMessage: final.errorMessage };
+  }
+
+  if (final.publishedClips > 0) {
+    return { patch, videoStatus: "queued", errorMessage: "" };
+  }
+
+  return { patch, videoStatus: final.videoStatus, errorMessage: final.errorMessage };
+}
+
+async function appendHistoryEntry({ job, video, caption, output, upload, platformResults = {}, status, clipIndex = 1, clipTotal = 1, options = {} }) {
+  const queueSeries = Boolean(options.scheduled && isAutomationSeriesVideo(video));
   await appendHistory({
     job_id: job.job_id,
     clip_index: clipIndex,
     clip_total: clipTotal,
     video_id: video.id,
+    queue_series: queueSeries,
+    automation_series: isAutomationSeriesVideo(video),
+    scheduled_run: options.scheduled === true,
+    manual_run: options.scheduled !== true,
+    series_target_count: queueSeries ? queueSeriesTarget(video) : 0,
+    source_youtube_video_id: video.youtube_video_id,
     source_url: video.url,
-    youtube_video_id: video.youtube_video_id,
     theme: job.theme,
     status,
     publish_date: status === "published" ? todayDate() : "",

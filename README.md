@@ -195,9 +195,11 @@ Sistem harus mengecek apakah posting untuk tanggal hari ini sudah dilakukan.
 Aturan cron harian:
 
 ```txt
-Workflow scheduled berjalan 15 kali per hari.
-YouTube dibatasi oleh `YOUTUBE_DAILY_UPLOAD_LIMIT` default `6` video per hari.
-Platform lain tetap bisa lanjut mengikuti jadwal selama `MAX_SCHEDULED_POSTS_PER_DAY=0`.
+Workflow scheduled berjalan 6 kali per hari.
+Setiap scheduled run memproses 1 clip dari link automasi aktif.
+Satu link automasi dipakai sampai menghasilkan 3 publish sukses, baru pindah ke link berikutnya.
+Queue automasi dijaga maksimal 5 link aktif.
+`YOUTUBE_DAILY_UPLOAD_LIMIT=0` berarti aplikasi tidak memberi batas upload harian; jumlah harian dikendalikan oleh jadwal dan quota platform.
 Jika `MAX_SCHEDULED_POSTS_PER_DAY` diisi lebih dari `0`, nilai itu menjadi limit umum semua platform.
 ```
 
@@ -732,9 +734,12 @@ THREADS_UPLOAD_ENABLED=false
 THREADS_CONTAINER_POLL_SECONDS=6
 THREADS_CONTAINER_MAX_ATTEMPTS=90
 MAX_SCHEDULED_POSTS_PER_DAY=0
-YOUTUBE_DAILY_UPLOAD_LIMIT=6
+YOUTUBE_DAILY_UPLOAD_LIMIT=0
+AUTOMATION_QUEUE_LINK_LIMIT=5
+QUEUE_SERIES_TARGET_COUNT=3
+SCHEDULED_CLIPS_PER_RUN=1
 AUTO_DISCOVER_CHANNEL_ONLY=false
-AUTO_DISCOVER_DAILY_QUEUE_LIMIT=20
+AUTO_DISCOVER_DAILY_QUEUE_LIMIT=5
 AUTO_DISCOVER_EXPIRE_OLD_QUEUE=true
 AUTO_DISCOVER_QUEUE_TTL_DAYS=1
 ```
@@ -855,9 +860,12 @@ THUMBNAIL_TRANSITION_KEY_COLOR=0x000000
 THUMBNAIL_TRANSITION_KEY_SIMILARITY=0.18
 THUMBNAIL_TRANSITION_KEY_BLEND=0.04
 MAX_SCHEDULED_POSTS_PER_DAY=0
-YOUTUBE_DAILY_UPLOAD_LIMIT=6
+YOUTUBE_DAILY_UPLOAD_LIMIT=0
+AUTOMATION_QUEUE_LINK_LIMIT=5
+QUEUE_SERIES_TARGET_COUNT=3
+SCHEDULED_CLIPS_PER_RUN=1
 AUTO_DISCOVER_CHANNEL_ONLY=false
-AUTO_DISCOVER_DAILY_QUEUE_LIMIT=20
+AUTO_DISCOVER_DAILY_QUEUE_LIMIT=5
 AUTO_DISCOVER_EXPIRE_OLD_QUEUE=true
 AUTO_DISCOVER_QUEUE_TTL_DAYS=1
 
@@ -880,7 +888,7 @@ AUTO_DISCOVER_CHANNEL_ONLY=false
 AUTO_DISCOVER_TRENDING_CATEGORY_IDS=24,22,10
 AUTO_DISCOVER_CHANNEL_HANDLES=@corbuzier|@VINDES|@radityadika|@DanielManantaNetwork|@HASCreative|@podkesmas|@podhub|@Kasisolusi
 AUTO_DISCOVER_FRESH_UPLOAD_DAYS=30
-AUTO_DISCOVER_CHANNEL_MAX_RESULTS=10
+AUTO_DISCOVER_CHANNEL_MAX_RESULTS=5
 
 GRAPH_API_VERSION=v25.0
 YOUTUBE_UPLOAD_ENABLED=true
@@ -1089,15 +1097,27 @@ Upload custom thumbnail ke YouTube. Default produksi: `true`, tetapi hanya dicob
 
 #### `YOUTUBE_DAILY_UPLOAD_LIMIT`
 
-Batas upload YouTube per hari. Default produksi: `6`. Jika batas tercapai, upload YouTube dilewati dan item dijaga untuk jadwal berikutnya tanpa memanggil YouTube upload API.
+Batas upload YouTube per hari. Default produksi: `0`, artinya aplikasi tidak membatasi jumlah upload harian dan hanya mengikuti jadwal/response quota platform. Jika diisi lebih dari `0`, upload YouTube dilewati setelah batas tercapai dan item dijaga untuk jadwal berikutnya tanpa memanggil YouTube upload API.
 
 #### `MAX_SCHEDULED_POSTS_PER_DAY`
 
-Batas publish umum dari run terjadwal GitHub Actions per hari. Default `0`, artinya workflow tetap mengikuti jadwal cron; guard khusus YouTube tetap memakai `YOUTUBE_DAILY_UPLOAD_LIMIT` (`6`). Jika diisi lebih dari `0`, nilai ini menjadi limit umum semua platform.
+Batas publish umum dari run terjadwal GitHub Actions per hari. Default `0`, artinya workflow tetap mengikuti jadwal cron tanpa limit umum. Jika diisi lebih dari `0`, nilai ini menjadi limit umum semua platform.
+
+#### `AUTOMATION_QUEUE_LINK_LIMIT`
+
+Jumlah link automasi aktif yang dijaga oleh auto-discovery. Default `5`.
+
+#### `QUEUE_SERIES_TARGET_COUNT`
+
+Jumlah publish sukses yang harus dicapai satu link automasi sebelum selector pindah ke link berikutnya. Default `3`.
+
+#### `SCHEDULED_CLIPS_PER_RUN`
+
+Jumlah clip yang diproses setiap scheduled run. Default `1`, sehingga 6 jadwal harian menghasilkan maksimal 6 proses terjadwal.
 
 #### `AUTO_DISCOVER_DAILY_QUEUE_LIMIT`
 
-Batas jumlah video auto-discovery yang dijaga untuk satu `target_date`. Default produksi: `20`, agar run tanpa link tetap punya stok video meski YouTube upload hanya 6/hari.
+Batas jumlah video auto-discovery yang dijaga untuk satu `target_date`. Default produksi: `5`, mengikuti window queue automasi.
 
 #### `AUTO_DISCOVER_CHANNEL_ONLY`
 

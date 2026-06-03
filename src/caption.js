@@ -57,7 +57,7 @@ export async function generateCaption({ job, output, promptTemplate, clipperRoot
     "- Hindari kalimat template kaku seperti 'Dalam video ini', 'Potongan ini', atau 'Video ini membahas'.",
     "- Ringkas, natural, emosional, dan tetap sesuai transkrip. Boleh pakai emoji, tapi jangan berlebihan.",
     "- Kalau ada nama tokoh/artis/narasumber, sebutkan namanya secara natural di hook atau isi caption.",
-    "- Hindari kata/hashtag yang rawan dibatasi platform: judi, slot, togel, taruhan, SARA, ujaran kebencian, pornografi, narkoba, atau kekerasan ekstrem.",
+    "- Hindari kata/hashtag yang rawan dibatasi platform: judi, slot, togel, taruhan, pinjol, paylater, riba, SARA, ujaran kebencian, pornografi, narkoba, atau kekerasan ekstrem.",
     "- Jangan pakai hashtag generik seperti #PodcastIndonesia, #ReelsIndonesia, #Shorts, #FYP, #Viral.",
     "- Jangan mengarang fakta di luar konteks.",
     "- Caption harus selesai utuh. Jangan akhiri dengan kalimat terpotong, koma, titik dua, kata sambung, atau ellipsis.",
@@ -358,6 +358,7 @@ function sanitizeCaptionText(value) {
     .replace(/^\s*(?:kenapa\s+ini\s+menarik|poin)\s*:\s*/gim, "")
     .replace(/\b(?:dalam\s+video\s+ini|potongan\s+ini|video\s+ini\s+membahas)\b/giu, "")
     .replace(/\b(?:judi\s*online|judi|slot|togel|casino|taruhan|betting)\b/giu, "jalan pintas berisiko")
+    .replace(/\b(?:pinjol|pinjaman\s*online|paylater|riba)\b/giu, "risiko finansial")
     .replace(/\bSARA\b/giu, "isu perbedaan");
 
   for (const phrase of STIFF_CAPTION_OPENERS) {
@@ -672,6 +673,12 @@ const UNSAFE_HASHTAG_TERMS = [
   "casino",
   "taruhan",
   "betting",
+  "pinjol",
+  "pinjamanonline",
+  "paylater",
+  "riba",
+  "utangonline",
+  "kreditonline",
   "sara",
   "rasis",
   "porn",

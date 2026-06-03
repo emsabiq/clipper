@@ -1,8 +1,10 @@
 import { readJson, writeJson } from "./storage.js";
 import { todayDate } from "./job-id.js";
+import { isAutomationSeriesVideo, queueSeriesTarget, storedQueueSeriesSuccessCount } from "./queue-policy.js";
 
 function videoKeys(entry = {}) {
   return [
+    entry.source_youtube_video_id,
     entry.youtube_video_id,
     entry.source_url,
     entry.url,
@@ -11,13 +13,22 @@ function videoKeys(entry = {}) {
   ].filter(Boolean);
 }
 
-export async function hasProcessedVideo(video) {
+function entryMatchesVideo(entry = {}, video = {}) {
+  const targetKeys = new Set(videoKeys(video));
+  if (!targetKeys.size) return false;
+  return videoKeys(entry).some((key) => targetKeys.has(key))
+    || Boolean(video.id && entry.video_id === video.id);
+}
+
+export async function hasProcessedVideo(video, options = {}) {
+  if (options.allowQueueSeriesRepeat === true) return false;
+
   const history = await readJson("history", []);
   const targetKeys = new Set(videoKeys(video));
   if (!targetKeys.size) return false;
   return history.some((entry) => {
     if (!["published", "ready_to_publish", "clipper_done"].includes(entry.status)) return false;
-    return videoKeys(entry).some((key) => targetKeys.has(key));
+    return entryMatchesVideo(entry, video);
   });
 }
 
@@ -41,6 +52,22 @@ export async function youtubePublishedCountToday(date = todayDate()) {
     ids.add(entry.youtube_url || entry.youtube_video_id);
   }
   return ids.size;
+}
+
+export async function queueSeriesPublishedCount(video) {
+  if (!isAutomationSeriesVideo(video)) return 0;
+  const history = await readJson("history", []);
+  return history.filter((entry) => {
+    if (entry.status !== "published") return false;
+    if (entry.queue_series !== true) return false;
+    return entryMatchesVideo(entry, video);
+  }).length;
+}
+
+export async function queueSeriesSuccessCount(video) {
+  const stored = storedQueueSeriesSuccessCount(video);
+  const fromHistory = await queueSeriesPublishedCount(video);
+  return Math.min(queueSeriesTarget(video), Math.max(stored, fromHistory));
 }
 
 export async function appendHistory(entry) {

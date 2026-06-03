@@ -459,6 +459,23 @@ def normalize_text(text):
     return re.sub(r"\s+", " ", re.sub(r"[^\w\s]", "", text.lower(), flags=re.UNICODE)).strip()
 
 
+SINGING_CLIP_RE = re.compile(
+    r"\b("
+    r"sedang\s+nyanyi|lagi\s+nyanyi|nyanyi|menyanyi|bernyanyi|nyanyiin|dinyanyikan|"
+    r"karaoke|cover\s+lagu|konser|panggung|lirik|lyrics|reff|chorus|"
+    r"live\s+music|live\s+performance|official\s+music\s+video|video\s+klip"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def is_singing_or_music_performance_text(text):
+    normalized = normalize_text(text)
+    if not normalized:
+        return False
+    return bool(SINGING_CLIP_RE.search(normalized))
+
+
 INLINE_TIMESTAMP_RE = re.compile(r"<(\d{1,2}:\d{2}:\d{2}\.\d{3})>")
 
 
@@ -1229,6 +1246,8 @@ def local_clip_score(text, start, duration):
         score -= 4
     if any(phrase in normalized for phrase in intro_penalties):
         score -= 6
+    if is_singing_or_music_performance_text(text):
+        score -= 100
 
     words = normalized.split()
     unique_ratio = len(set(words)) / max(len(words), 1)
@@ -1315,6 +1334,8 @@ def build_candidate_clips(segments, config):
 
             text = segment_text_window(segments, start, end, max_chars=per_candidate_chars)
             if len(text.split()) < 8:
+                continue
+            if is_singing_or_music_performance_text(text):
                 continue
 
             scored.append(
@@ -1423,12 +1444,15 @@ def find_important_clips(segments, config):
 Viral strategy wajib dipakai:
 - Beri viral_score 0-100 untuk tiap pilihan.
 - Pilih candidate dengan potensi retention paling kuat: konflik, rasa penasaran, emosi, pernyataan mengejutkan, atau insight yang bisa berdiri sendiri.
+- Prioritaskan kualitas isi: insight, pelajaran, sudut pandang, data, atau cerita yang punya nilai untuk penonton.
 - selected_angle harus menjelaskan sudut viral yang jelas, bukan kalimat umum.
 - publish_decision gunakan "publish" hanya jika score >= {config.get('min_viral_score_to_publish', 55)} atau hook sangat kuat; selain itu "borderline".
 - thumbnail_text wajib 6-12 kata, tegas, dan tidak clickbait palsu.
 - hashtags maksimal 3 dan relevan.
 - Jangan pakai hashtag generik seperti #PodcastIndonesia, #Shorts, #FYP, atau #Viral.
-- Hindari kata/hashtag rawan platform seperti judi, slot, togel, taruhan, SARA, ujaran kebencian, pornografi, narkoba, atau kekerasan ekstrem.
+- Hindari kata/hashtag rawan platform seperti judi, slot, togel, taruhan, pinjol, paylater, riba, SARA, ujaran kebencian, pornografi, narkoba, atau kekerasan ekstrem.
+- Jangan pilih bagian yang utamanya orang sedang menyanyi/bernyanyi, karaoke, konser, lirik lagu, atau performa musik.
+- Hindari gosip murahan, aib, skandal, dan potongan yang hanya sensasional tanpa insight.
 - Jika ada nama tokoh/artis/narasumber, sebutkan namanya secara natural di caption dan prioritaskan hashtag nama tokoh tersebut.
 - caption wajib 2-3 kalimat lengkap, natural, dan terasa seperti mengajak pemirsa ngobrol.
 - caption harus membahas topik utama candidate secara spesifik, bukan kalimat promosi generik.
@@ -1450,6 +1474,8 @@ Kriteria:
 - Durasi maksimal {config['max_clip_seconds']} detik.
 - Mudah dipahami tanpa konteks terlalu panjang.
 - Hindari opening basa-basi.
+- Hindari segmen orang sedang menyanyi/bernyanyi, karaoke, konser, lirik lagu, atau performa musik; pilih bagian obrolan/insight.
+- Hindari gosip murahan, aib, skandal, dan potongan sensasional tanpa nilai informasi.
 - Cocok untuk TikTok, Instagram Reels, dan YouTube Shorts.
 - Untuk tahap ini pilih hanya bagian paling kuat, jangan banyak-banyak.
 - Output harus JSON valid saja, tanpa markdown.
@@ -1514,6 +1540,13 @@ def validate_clips(clips, segments, config):
             or clip.get("clipTranscript")
             or segment_text_window(segments, start, end, max_chars=1200)
         )
+        quality_text = " ".join(
+            str(clip.get(key) or "")
+            for key in ["title", "reason", "hook", "caption", "selected_angle", "selectedAngle", "thumbnail_text", "thumbnailText"]
+        )
+        if is_singing_or_music_performance_text(f"{quality_text} {clip_transcript}"):
+            continue
+
         local_score = local_clip_score(clip_transcript, start, end - start)
         viral_score = normalize_viral_score(clip.get("viral_score") or clip.get("viralScore"), local_score)
         publish_decision = normalize_publish_decision(

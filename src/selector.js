@@ -1,8 +1,15 @@
 import { readJson, patchItem, upsertItem } from "./storage.js";
 import { todayDate, createJobId, makeId } from "./job-id.js";
 import { extractYoutubeVideoId } from "./youtube.js";
-import { hasProcessedVideo } from "./history.js";
+import { hasProcessedVideo, queueSeriesSuccessCount } from "./history.js";
 import { blockedChannelMatch } from "./channel-blocklist.js";
+import {
+  automationQueueLinkLimit,
+  isAutomationSeriesVideo,
+  isQueueSeriesComplete,
+  queueSeriesTarget,
+  storedQueueSeriesSuccessCount
+} from "./queue-policy.js";
 
 const selectableStatuses = new Set(["queued", "failed", "retry"]);
 
@@ -20,6 +27,14 @@ function compareCandidates(a, b) {
   const priority = Number(a.priority || 100) - Number(b.priority || 100);
   if (priority !== 0) return priority;
   return String(a.created_at || "").localeCompare(String(b.created_at || ""));
+}
+
+function compareSeriesCandidates(a, b) {
+  const priority = Number(a.priority || 100) - Number(b.priority || 100);
+  if (priority !== 0) return priority;
+  const created = String(a.created_at || "").localeCompare(String(b.created_at || ""));
+  if (created !== 0) return created;
+  return statusRank(a.status) - statusRank(b.status);
 }
 
 function shuffle(items) {
@@ -46,6 +61,32 @@ function orderCandidates(candidates, randomize = false) {
     .flatMap((rank) => shuffle(byStatus.get(rank)));
 }
 
+async function orderAutomationSeriesCandidates(candidates) {
+  const ordered = [...candidates]
+    .filter(isAutomationSeriesVideo)
+    .sort(compareSeriesCandidates);
+  const active = [];
+
+  for (const video of ordered) {
+    const successCount = await queueSeriesSuccessCount(video);
+    if (isQueueSeriesComplete(video, successCount)) {
+      await patchItem("videos", video.id, {
+        status: "published",
+        series_success_count: successCount,
+        series_completed_at: video.series_completed_at || new Date().toISOString()
+      });
+      continue;
+    }
+    active.push({
+      ...video,
+      series_success_count: successCount,
+      series_target_count: queueSeriesTarget(video)
+    });
+  }
+
+  return active.slice(0, automationQueueLinkLimit());
+}
+
 function boolInput(value, fallback = false) {
   if (value === undefined || value === null || value === "") return fallback;
   if (typeof value === "boolean") return value;
@@ -70,15 +111,25 @@ export async function selectNextVideo(options = {}) {
     .filter((video) => selectableStatuses.has(video.status || "queued"))
     .filter((video) => !requestedTheme || video.theme === requestedTheme);
 
-  const todayCandidates = candidates.filter((video) => video.target_date === date);
-  if (todayCandidates.length) candidates = todayCandidates;
+  if (options.excludeAutomationSeries === true) {
+    candidates = candidates.filter((video) => !isAutomationSeriesVideo(video));
+  }
+
+  if (options.seriesMode === true) {
+    candidates = await orderAutomationSeriesCandidates(candidates);
+  } else {
+    const todayCandidates = candidates.filter((video) => video.target_date === date);
+    if (todayCandidates.length) candidates = todayCandidates;
+  }
 
   const preferredCandidates = preferredVideoIds.size
     ? candidates.filter((video) => preferredVideoIds.has(video.id))
     : [];
-  if (preferredCandidates.length) candidates = preferredCandidates;
+  if (preferredCandidates.length && options.seriesMode !== true) candidates = preferredCandidates;
 
-  candidates = orderCandidates(candidates, options.randomize === true);
+  candidates = options.seriesMode === true
+    ? candidates
+    : orderCandidates(candidates, options.randomize === true);
 
   for (const video of candidates) {
     const blocked = blockedChannelMatch(video);
@@ -89,7 +140,10 @@ export async function selectNextVideo(options = {}) {
       });
       continue;
     }
-    if (!options.forceReprocess && !video.force_reprocess && await hasProcessedVideo(video)) {
+    const allowQueueSeriesRepeat = options.seriesMode === true
+      && isAutomationSeriesVideo(video)
+      && !isQueueSeriesComplete(video, await queueSeriesSuccessCount(video));
+    if (!options.forceReprocess && !video.force_reprocess && await hasProcessedVideo(video, { allowQueueSeriesRepeat })) {
       await patchItem("videos", video.id, { status: "skipped_duplicate" });
       continue;
     }
@@ -133,6 +187,10 @@ export async function addVideo(input) {
     use_music: boolInput(input.use_music, boolInput(process.env.BACKGROUND_MUSIC_ENABLED, true)),
     use_subtitle_highlight: boolInput(input.use_subtitle_highlight, boolInput(process.env.SUBTITLE_WORD_HIGHLIGHT_ENABLED, true)),
     force_reprocess: input.force_reprocess === true,
+    automation_series: input.automation_series !== false && input.manual_run !== true,
+    manual_run: input.manual_run === true,
+    series_target_count: Number(input.series_target_count || process.env.QUEUE_SERIES_TARGET_COUNT || 3),
+    series_success_count: Number(input.series_success_count || 0),
     source_title: input.source_title || "",
     channel_title: input.channel_title || "",
     published_at_source: input.published_at_source || "",
@@ -168,7 +226,7 @@ export async function createJobRecord({ video, theme, prompt }, options = {}) {
     theme: theme?.name || video.theme,
     source_type: video.source_type || "youtube_video",
     source_url: video.url || video.source_url,
-    youtube_video_id: video.youtube_video_id || extractYoutubeVideoId(video.url),
+    source_youtube_video_id: video.youtube_video_id || extractYoutubeVideoId(video.url),
     source_title: "",
     clipper_status: "pending",
     caption_status: "pending",
@@ -204,6 +262,11 @@ export async function createJobRecord({ video, theme, prompt }, options = {}) {
     youtube_url: "",
     youtube_error: "",
     youtube_published_at: "",
+    automation_series: isAutomationSeriesVideo(video),
+    manual_run: video.manual_run === true,
+    queue_series: isAutomationSeriesVideo(video),
+    series_target_count: queueSeriesTarget(video),
+    series_success_count: storedQueueSeriesSuccessCount(video),
     use_frame: video.use_frame,
     use_filter: video.use_filter,
     use_watermark: video.use_watermark,
@@ -248,6 +311,10 @@ export function normalizeVideo(video) {
     use_music: boolInput(video.use_music, boolInput(process.env.BACKGROUND_MUSIC_ENABLED, true)),
     use_subtitle_highlight: boolInput(video.use_subtitle_highlight, boolInput(process.env.SUBTITLE_WORD_HIGHLIGHT_ENABLED, true)),
     force_reprocess: video.force_reprocess === true,
+    automation_series: video.automation_series !== false && video.manual_run !== true,
+    manual_run: video.manual_run === true,
+    series_target_count: Number(video.series_target_count || process.env.QUEUE_SERIES_TARGET_COUNT || 3),
+    series_success_count: Number(video.series_success_count || 0),
     active: video.active !== false,
     status: video.status || "queued"
   };
