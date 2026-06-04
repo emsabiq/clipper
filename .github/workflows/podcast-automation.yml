@@ -16,7 +16,7 @@ on:
         required: false
         default: ""
       force_reprocess:
-        description: "Force manual URL even if duplicate history exists: true/false"
+        description: "Force manual URL duplicate: true/false. Use scheduled to test queue-series now."
         required: false
         default: "false"
       quality_profile:
@@ -103,10 +103,6 @@ on:
         description: "Optional ready job id to publish; empty uses latest ready job"
         required: false
         default: ""
-      run_as_scheduled:
-        description: "Manual test as scheduled queue-series run: true/false"
-        required: false
-        default: "false"
   schedule:
     # GitHub schedule uses UTC.
     # Target 6 scheduled runs per hari, disebar dari pagi sampai malam WIB.
@@ -1071,14 +1067,13 @@ jobs:
           URL: ${{ github.event.inputs.url || '' }}
           RANGE: ${{ github.event.inputs.range || '' }}
           FORCE_REPROCESS: ${{ github.event.inputs.force_reprocess || 'false' }}
-          RUN_AS_SCHEDULED: ${{ github.event.inputs.run_as_scheduled || 'false' }}
         run: |
           args=(--publish --theme "$THEME")
 
           # Pakai --scheduled hanya saat trigger dari cron schedule.
           # Manual run tidak memakai --scheduled agar tidak kena guard already_published_today.
-          # RUN_AS_SCHEDULED dipakai untuk mengetes queue-series sekarang tanpa menunggu cron berikutnya.
-          if [ "$EVENT_NAME" = "schedule" ] || [ "$RUN_AS_SCHEDULED" = "true" ] || [ "$RUN_AS_SCHEDULED" = "1" ]; then
+          # FORCE_REPROCESS=scheduled dipakai untuk mengetes queue-series sekarang tanpa menunggu cron berikutnya.
+          if [ "$EVENT_NAME" = "schedule" ] || [ "$FORCE_REPROCESS" = "scheduled" ]; then
             args+=(--scheduled)
           fi
 
