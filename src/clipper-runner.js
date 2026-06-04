@@ -2,6 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { config } from "./config.js";
+import { queueSeriesClipRanges } from "./history.js";
+import { isAutomationSeriesVideo } from "./queue-policy.js";
 
 function boolInput(value, fallback = false) {
   if (value === undefined || value === null || value === "") return fallback;
@@ -44,6 +46,10 @@ export async function runClipper({ video, job, onLog = () => {} }) {
   if (video.manual_range) {
     args.push("--range", video.manual_range);
   }
+  const avoidRanges = await clipRangesToAvoid(video);
+  for (const range of avoidRanges) {
+    args.push("--avoid-range", `${range.start}-${range.end}`);
+  }
 
   const quality = qualityPreset(video.quality_profile);
   const sceneMode = String(video.scene_mode || process.env.SCENE_MODE || process.env.SMART_CROP_MODE || "podcast");
@@ -84,6 +90,9 @@ export async function runClipper({ video, job, onLog = () => {} }) {
   const idleTimeoutMs = secondsInput("CLIPPER_IDLE_TIMEOUT_SECONDS", 1200, 300, 3600) * 1000;
 
   onLog(`Running clipper: ${config.clipper.pythonCommand} ${args.join(" ")}`);
+  if (avoidRanges.length) {
+    onLog(`Queue series avoid ranges: ${avoidRanges.map((range) => `${range.start}-${range.end}`).join(", ")}`);
+  }
   onLog(`Clipper watchdog: hard ${minutesLabel(hardTimeoutMs)}, idle ${minutesLabel(idleTimeoutMs)}`);
 
   const output = await new Promise((resolve, reject) => {
@@ -167,6 +176,25 @@ export async function runClipper({ video, job, onLog = () => {} }) {
   if (!parsed) throw new Error("Clipper selesai, tetapi file result JSON tidak ditemukan.");
 
   return normalizeClipperResult(parsed, clipperRoot, job);
+}
+
+async function clipRangesToAvoid(video = {}) {
+  if (!isAutomationSeriesVideo(video) || video.force_reprocess === true) return [];
+  if (boolInput(process.env.QUEUE_SERIES_AVOID_PREVIOUS_CLIPS, true) !== true) return [];
+  const ranges = await queueSeriesClipRanges(video);
+  return ranges
+    .map((range) => ({
+      start: secondsValue(range.start),
+      end: secondsValue(range.end)
+    }))
+    .filter((range) => Number.isFinite(range.start) && Number.isFinite(range.end) && range.end > range.start)
+    .slice(-20);
+}
+
+function secondsValue(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) return null;
+  return Math.round(number * 100) / 100;
 }
 
 function qualityPreset(value) {

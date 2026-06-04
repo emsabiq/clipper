@@ -1318,6 +1318,8 @@ def build_candidate_clips(segments, config):
     max_candidates = max(1, min(8, int(config.get("ai_candidate_max_count", 5))))
     max_total_chars = max(700, int(config.get("ai_candidate_max_chars", 4000)))
     per_candidate_chars = max(220, min(1100, max_total_chars // max_candidates))
+    avoid_ranges = config.get("avoid_ranges") or []
+    avoid_margin = max(0.0, float(config.get("avoid_margin_seconds") or 0.0))
 
     scored = []
     for start_index, segment in enumerate(segments):
@@ -1331,6 +1333,8 @@ def build_candidate_clips(segments, config):
                 continue
             if duration > max_duration:
                 break
+            if clip_overlaps_ranges(start, end, avoid_ranges, avoid_margin):
+                continue
 
             text = segment_text_window(segments, start, end, max_chars=per_candidate_chars)
             if len(text.split()) < 8:
@@ -1362,8 +1366,7 @@ def build_candidate_clips(segments, config):
             break
 
     if not selected and segments:
-        start = float(segments[0].get("start", 0))
-        end = min(float(segments[-1].get("end", start + max_duration)), start + max_duration)
+        start, end = fallback_non_overlapping_range(segments, max_duration, avoid_ranges, avoid_margin)
         selected.append(
             {
                 "score": 0,
@@ -1505,8 +1508,10 @@ Candidate clips:
 """
 
     try:
-        clips = call_json_with_ai_fallback(prompt, config, "Analisis bagian penting")
-        return validate_clips(clips, segments, config)
+        clips = validate_clips(call_json_with_ai_fallback(prompt, config, "Analisis bagian penting"), segments, config)
+        if clips:
+            return clips
+        log_warn("AI memilih clip yang overlap/invalid. Pakai fallback lokal offline.")
     except Exception as exc:
         log_warn(f"Semua AI provider gagal. Pakai fallback analisis lokal offline: {exc}")
     return validate_clips(local_clips, segments, config)
@@ -1521,6 +1526,8 @@ def validate_clips(clips, segments, config):
 
     max_time = max([float(segment["end"]) for segment in segments] or [0])
     result = []
+    avoid_ranges = config.get("avoid_ranges") or []
+    avoid_margin = max(0.0, float(config.get("avoid_margin_seconds") or 0.0))
 
     for index, clip in enumerate(clips):
         try:
@@ -1533,6 +1540,8 @@ def validate_clips(clips, segments, config):
             end = min(end, max_time)
 
         if end <= start:
+            continue
+        if clip_overlaps_ranges(start, end, avoid_ranges, avoid_margin):
             continue
 
         clip_transcript = (
@@ -4321,6 +4330,42 @@ def parse_range(value, index):
     }
 
 
+def parse_avoid_range(value):
+    if "-" not in str(value):
+        raise ValueError(f"Avoid range tidak valid: {value}")
+    start_raw, end_raw = str(value).split("-", 1)
+    start = max(0.0, parse_time(start_raw))
+    end = max(0.0, parse_time(end_raw))
+    if end <= start:
+        raise ValueError(f"Avoid range tidak valid: {value}")
+    return {"start": start, "end": end}
+
+
+def clip_overlaps_ranges(start, end, ranges, margin_seconds=0.0):
+    for item in ranges or []:
+        avoid_start = max(0.0, float(item.get("start", 0.0)) - margin_seconds)
+        avoid_end = float(item.get("end", 0.0)) + margin_seconds
+        if start < avoid_end and end > avoid_start:
+            return True
+    return False
+
+
+def fallback_non_overlapping_range(segments, max_duration, avoid_ranges, avoid_margin):
+    default_start = float(segments[0].get("start", 0))
+    default_end = min(float(segments[-1].get("end", default_start + max_duration)), default_start + max_duration)
+
+    for segment in segments:
+        start = float(segment.get("start", 0))
+        end = min(float(segments[-1].get("end", start + max_duration)), start + max_duration)
+        if end <= start:
+            continue
+        if not clip_overlaps_ranges(start, end, avoid_ranges, avoid_margin):
+            return start, end
+
+    log_warn("Semua fallback clip overlap dengan avoid range; pakai fallback awal transcript.")
+    return default_start, default_end
+
+
 def main():
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -4333,9 +4378,13 @@ def main():
     parser = argparse.ArgumentParser(description="Auto Video Clipper Python Orchestrator")
     parser.add_argument("url")
     parser.add_argument("--range", action="append", default=[], help="Contoh: 00:01:20-00:02:05")
+    parser.add_argument("--avoid-range", action="append", default=[], help="Range clip lama yang harus dihindari")
     args = parser.parse_args()
 
     config = cfg()
+    avoid_ranges = [parse_avoid_range(value) for value in args.avoid_range]
+    config["avoid_ranges"] = avoid_ranges
+    config["avoid_margin_seconds"] = parse_float(os.environ.get("CLIP_AVOID_MARGIN_SECONDS"), 8.0)
     ensure_dirs()
 
     job_id = create_job_id(args.url)
@@ -4373,10 +4422,12 @@ def main():
         log_progress("clip_select", 32, note="manual_range")
     else:
         cached_clips = latest_cached_json(args.url, "clips")
-        if cached_clips:
+        if cached_clips and not avoid_ranges:
             clips = validate_clips(cached_clips, segments, config)
             log_progress("clip_select", 32, note="cache")
         else:
+            if cached_clips and avoid_ranges:
+                log_warn("Cache clips dilewati karena ada avoid range dari queue series.")
             log_step("AI mencari bagian paling kuat dari transcript.")
             log_progress("clip_select", 24, note="selecting")
             clips = find_important_clips(segments, config)

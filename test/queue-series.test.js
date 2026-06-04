@@ -6,6 +6,7 @@ import path from "node:path";
 import { config } from "../src/config.js";
 import { ensureProjectDirs, writeJson } from "../src/storage.js";
 import { selectNextVideo } from "../src/selector.js";
+import { queueSeriesClipRanges } from "../src/history.js";
 
 async function withTempData(callback) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "clipper-queue-series-"));
@@ -112,5 +113,50 @@ test("manual ad-hoc selection does not take automation series links", async () =
       theme: "auto"
     });
     assert.equal(selection.video.id, "manual_video");
+  });
+});
+
+test("queue series exposes previous clip ranges for the same source", async () => {
+  await withTempData(async () => {
+    const video = {
+      id: "video_1",
+      url: "https://www.youtube.com/watch?v=11111111111",
+      youtube_video_id: "11111111111",
+      automation_series: true,
+      series_target_count: 3
+    };
+
+    await writeJson("history", [
+      {
+        status: "published",
+        queue_series: true,
+        video_id: "video_1",
+        source_youtube_video_id: "11111111111",
+        start_time: 80,
+        end_time: 132.5,
+        duration: 52.5
+      },
+      {
+        status: "published",
+        queue_series: true,
+        video_id: "other_video",
+        source_youtube_video_id: "22222222222",
+        start_time: 20,
+        end_time: 70
+      },
+      {
+        status: "publish_failed",
+        queue_series: true,
+        video_id: "video_1",
+        source_youtube_video_id: "11111111111",
+        start_time: 150,
+        end_time: 205
+      }
+    ]);
+
+    const ranges = await queueSeriesClipRanges(video);
+    assert.deepEqual(ranges.map(({ start, end, duration }) => ({ start, end, duration })), [
+      { start: 80, end: 132.5, duration: 52.5 }
+    ]);
   });
 });

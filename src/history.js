@@ -2,6 +2,8 @@ import { readJson, writeJson } from "./storage.js";
 import { todayDate } from "./job-id.js";
 import { isAutomationSeriesVideo, queueSeriesTarget, storedQueueSeriesSuccessCount } from "./queue-policy.js";
 
+const queueSeriesClipRangeStatuses = new Set(["published", "ready_to_publish", "clipper_done"]);
+
 function videoKeys(entry = {}) {
   return [
     entry.source_youtube_video_id,
@@ -13,7 +15,7 @@ function videoKeys(entry = {}) {
   ].filter(Boolean);
 }
 
-function entryMatchesVideo(entry = {}, video = {}) {
+export function entryMatchesVideo(entry = {}, video = {}) {
   const targetKeys = new Set(videoKeys(video));
   if (!targetKeys.size) return false;
   return videoKeys(entry).some((key) => targetKeys.has(key))
@@ -70,6 +72,19 @@ export async function queueSeriesSuccessCount(video) {
   return Math.min(queueSeriesTarget(video), Math.max(stored, fromHistory));
 }
 
+export async function queueSeriesClipRanges(video) {
+  if (!isAutomationSeriesVideo(video)) return [];
+
+  const history = await readJson("history", []);
+  return history
+    .filter((entry) => entry.queue_series === true)
+    .filter((entry) => queueSeriesClipRangeStatuses.has(entry.status))
+    .filter((entry) => entryMatchesVideo(entry, video))
+    .map(historyClipRange)
+    .filter(Boolean)
+    .sort((a, b) => a.start - b.start);
+}
+
 export async function appendHistory(entry) {
   const history = await readJson("history", []);
   history.push({
@@ -101,4 +116,22 @@ function todayDateFromDate(date) {
     month: "2-digit",
     day: "2-digit"
   }).format(date);
+}
+
+function historyClipRange(entry = {}) {
+  const start = secondsValue(entry.start_time ?? entry.startTime ?? entry.start);
+  const end = secondsValue(entry.end_time ?? entry.endTime ?? entry.end);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+  return {
+    start,
+    end,
+    duration: secondsValue(entry.duration) || end - start,
+    job_id: entry.job_id || "",
+    clip_index: entry.clip_index || 1
+  };
+}
+
+function secondsValue(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : null;
 }
