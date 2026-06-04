@@ -27,7 +27,9 @@ import { enabledPublishPlatformsFromConfig, selectPublishPlatforms } from "./pub
 import {
   isAutomationSeriesVideo,
   queueSeriesTarget,
-  scheduledClipsPerRun
+  scheduledClipsPerRun,
+  dedupeClipRanges,
+  storedSeriesClipRanges
 } from "./queue-policy.js";
 
 export async function runWorkflow(options = {}) {
@@ -454,7 +456,7 @@ async function processSelectedWorkflow({ selection, options, scheduledDailyLimit
     const final = finalStatusFromClipResults(clipResults, workflowPublishEnabled(options));
     const firstSuccess = clipResults.find((item) => item.ok);
     const lastPlatformResults = [...clipResults].reverse().find((item) => item.platformResults)?.platformResults || {};
-    const seriesPatch = await queueSeriesStatusPatch({ job, video, options, final });
+    const seriesPatch = await queueSeriesStatusPatch({ job, video, options, final, clipResults });
 
     await updateJob(job.job_id, {
       status: final.status,
@@ -1187,7 +1189,7 @@ function youtubeDailyUploadLimit() {
   return Math.max(0, Math.floor(value));
 }
 
-async function queueSeriesStatusPatch({ job, video, options, final }) {
+async function queueSeriesStatusPatch({ job, video, options, final, clipResults = [] }) {
   if (!(options.scheduled && isAutomationSeriesVideo(video))) {
     return { patch: {}, videoStatus: "", errorMessage: undefined };
   }
@@ -1197,12 +1199,25 @@ async function queueSeriesStatusPatch({ job, video, options, final }) {
   const nextCount = Math.min(targetCount, currentCount + Math.max(0, final.publishedClips || 0));
   const completed = nextCount >= targetCount;
   const now = new Date().toISOString();
+
+  // Catat range clip yang baru berhasil publish ke ledger video (videos.json)
+  // agar run berikutnya menghindari segmen yang sama. Ini sumber otoritatif,
+  // tahan terhadap trimming/lost-update history.json global.
+  const newRanges = clipResults
+    .filter((item) => item?.ok && item?.primaryPublished)
+    .map((item) => ({ start: item?.output?.start, end: item?.output?.end }));
+  const mergedRanges = dedupeClipRanges([
+    ...storedSeriesClipRanges(video),
+    ...newRanges
+  ]).slice(-40);
+
   const patch = {
     automation_series: true,
     queue_series: true,
     series_target_count: targetCount,
     series_success_count: nextCount,
     series_remaining_count: Math.max(0, targetCount - nextCount),
+    series_clip_ranges: mergedRanges,
     last_series_job_id: job.job_id,
     last_series_run_at: now
   };

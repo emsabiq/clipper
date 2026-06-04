@@ -160,3 +160,38 @@ test("queue series exposes previous clip ranges for the same source", async () =
     ]);
   });
 });
+
+test("storedSeriesClipRanges reads the authoritative ledger from the video record", async () => {
+  const { storedSeriesClipRanges } = await import("../src/queue-policy.js");
+  const video = {
+    id: "video_1",
+    automation_series: true,
+    series_clip_ranges: [
+      { start: 100.123, end: 152.5 },
+      { start: -5, end: 10 },
+      { start: 50, end: 50 },
+      { start: 200, end: 260 }
+    ]
+  };
+
+  assert.deepEqual(storedSeriesClipRanges(video), [
+    { start: 100.12, end: 152.5 },
+    { start: 200, end: 260 }
+  ]);
+  assert.deepEqual(storedSeriesClipRanges({}), []);
+});
+
+test("dedupeClipRanges removes overlapping duplicates and invalid ranges", async () => {
+  const { dedupeClipRanges } = await import("../src/queue-policy.js");
+  const merged = dedupeClipRanges([
+    { start: 100, end: 152 },
+    { start: 100.2, end: 152.4 },
+    { start: 200, end: 260 },
+    { start: 300, end: 200 }
+  ]);
+
+  assert.deepEqual(merged, [
+    { start: 100, end: 152 },
+    { start: 200, end: 260 }
+  ]);
+});

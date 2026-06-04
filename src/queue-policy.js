@@ -31,6 +31,37 @@ export function storedQueueSeriesSuccessCount(video = {}) {
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
 }
 
+function roundSeconds(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) return null;
+  return Math.round(number * 100) / 100;
+}
+
+// Range clip yang sudah dipakai, disimpan otoritatif di record video (videos.json)
+// supaya run berikutnya dalam satu queue-series tahu segmen mana yang harus dihindari,
+// tanpa bergantung pada history.json global yang rawan ter-trim / lost-update.
+export function storedSeriesClipRanges(video = {}) {
+  const ranges = Array.isArray(video.series_clip_ranges) ? video.series_clip_ranges : [];
+  return ranges
+    .map((range) => ({ start: roundSeconds(range?.start), end: roundSeconds(range?.end) }))
+    .filter((range) => Number.isFinite(range.start) && Number.isFinite(range.end) && range.end > range.start);
+}
+
+export function dedupeClipRanges(ranges = []) {
+  const seen = new Set();
+  const result = [];
+  for (const range of ranges) {
+    const start = roundSeconds(range?.start);
+    const end = roundSeconds(range?.end);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) continue;
+    const key = `${Math.round(start)}-${Math.round(end)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push({ start, end });
+  }
+  return result;
+}
+
 export function queueSeriesRemaining(video = {}, successCount = storedQueueSeriesSuccessCount(video)) {
   return Math.max(0, queueSeriesTarget(video) - successCount);
 }

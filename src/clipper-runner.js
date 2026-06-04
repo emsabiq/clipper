@@ -3,7 +3,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { config } from "./config.js";
 import { queueSeriesClipRanges } from "./history.js";
-import { isAutomationSeriesVideo } from "./queue-policy.js";
+import { dedupeClipRanges, isAutomationSeriesVideo, storedSeriesClipRanges } from "./queue-policy.js";
 
 function boolInput(value, fallback = false) {
   if (value === undefined || value === null || value === "") return fallback;
@@ -186,8 +186,11 @@ export async function runClipper({ video, job, onLog = () => {} }) {
 async function clipRangesToAvoid(video = {}) {
   if (!isAutomationSeriesVideo(video) || video.force_reprocess === true) return [];
   if (boolInput(process.env.QUEUE_SERIES_AVOID_PREVIOUS_CLIPS, true) !== true) return [];
-  const ranges = await queueSeriesClipRanges(video);
-  return ranges
+  // Sumber utama: ledger range di record video (otoritatif, ikut queue item).
+  // Fallback: history.json global, untuk data lama sebelum ledger ada.
+  const storedRanges = storedSeriesClipRanges(video);
+  const historyRanges = await queueSeriesClipRanges(video);
+  return dedupeClipRanges([...storedRanges, ...historyRanges])
     .map((range) => ({
       start: secondsValue(range.start),
       end: secondsValue(range.end)
