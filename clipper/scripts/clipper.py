@@ -170,6 +170,7 @@ def cfg():
         "viral_strategy_required": parse_int(os.environ.get("VIRAL_STRATEGY_REQUIRED"), 0),
         "min_viral_score_to_publish": parse_int(os.environ.get("MIN_VIRAL_SCORE_TO_PUBLISH"), 55),
         "clip_count": parse_int(os.environ.get("CLIP_COUNT"), 1),
+        "clip_selection_offset": parse_int(os.environ.get("CLIP_SELECTION_OFFSET"), 0),
         "min_clip_seconds": parse_int(os.environ.get("MIN_CLIP_SECONDS"), 40),
         "max_clip_seconds": parse_int(os.environ.get("MAX_CLIP_SECONDS"), 60),
         "width": parse_int(os.environ.get("OUTPUT_WIDTH"), 1080),
@@ -1377,6 +1378,8 @@ def build_candidate_clips(segments, config):
             }
         )
 
+    selected = apply_selection_offset(selected, config)
+
     candidates = []
     used_chars = 0
     for index, item in enumerate(selected):
@@ -1401,6 +1404,20 @@ def build_candidate_clips(segments, config):
         )
 
     return candidates
+
+
+def apply_selection_offset(selected, config):
+    offset = max(0, int(config.get("clip_selection_offset") or 0))
+    if offset <= 0 or not selected:
+        return selected
+    if offset >= len(selected):
+        log_warn(
+            f"CLIP_SELECTION_OFFSET={offset} melebihi kandidat {len(selected)}; "
+            "pakai kandidat terakhir yang tersedia."
+        )
+        return selected[-1:]
+    log_info(f"Queue series melewati {offset} kandidat awal agar clip berikutnya berbeda.")
+    return selected[offset:]
 
 
 def candidate_to_clip(candidate, index=0, reason=""):

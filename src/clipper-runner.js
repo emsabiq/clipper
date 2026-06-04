@@ -54,6 +54,7 @@ export async function runClipper({ video, job, onLog = () => {} }) {
   const quality = qualityPreset(video.quality_profile);
   const sceneMode = String(video.scene_mode || process.env.SCENE_MODE || process.env.SMART_CROP_MODE || "podcast");
   const clipCount = String(video.clip_count || process.env.CLIP_COUNT || config.clipper.clipCount);
+  const selectionOffset = queueSeriesSelectionOffset(video, avoidRanges.length);
   const useSubtitleHighlight = boolInput(
     video.use_subtitle_highlight ?? job.use_subtitle_highlight,
     boolInput(process.env.SUBTITLE_WORD_HIGHLIGHT_ENABLED, true)
@@ -80,6 +81,7 @@ export async function runClipper({ video, job, onLog = () => {} }) {
     SUBTITLE_MARGIN_H: String(video.subtitle_margin_h || process.env.SUBTITLE_MARGIN_H || 80),
     SUBTITLE_WORD_HIGHLIGHT_ENABLED: useSubtitleHighlight ? "1" : "0",
     SUBTITLE_EMOJI_POPUP_ENABLED: useEmojiPopup ? "1" : "0",
+    CLIP_SELECTION_OFFSET: String(selectionOffset),
     SCENE_MODE: sceneMode,
     SMART_CROP_MODE: sceneMode,
     THEME: String(video.theme || job.theme || config.defaultTheme || ""),
@@ -92,6 +94,9 @@ export async function runClipper({ video, job, onLog = () => {} }) {
   onLog(`Running clipper: ${config.clipper.pythonCommand} ${args.join(" ")}`);
   if (avoidRanges.length) {
     onLog(`Queue series avoid ranges: ${avoidRanges.map((range) => `${range.start}-${range.end}`).join(", ")}`);
+  }
+  if (selectionOffset > 0) {
+    onLog(`Queue series candidate offset: ${selectionOffset}`);
   }
   onLog(`Clipper watchdog: hard ${minutesLabel(hardTimeoutMs)}, idle ${minutesLabel(idleTimeoutMs)}`);
 
@@ -195,6 +200,13 @@ function secondsValue(value) {
   const number = Number(value);
   if (!Number.isFinite(number) || number < 0) return null;
   return Math.round(number * 100) / 100;
+}
+
+function queueSeriesSelectionOffset(video = {}, avoidRangeCount = 0) {
+  if (!isAutomationSeriesVideo(video) || video.force_reprocess === true) return 0;
+  const successCount = Math.floor(Number(video.series_success_count || 0));
+  if (!Number.isFinite(successCount) || successCount <= 0) return 0;
+  return Math.max(0, successCount - Math.max(0, avoidRangeCount));
 }
 
 function qualityPreset(value) {
