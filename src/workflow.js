@@ -1146,7 +1146,13 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail, publi
 }
 
 function platformPublishStatus(platformResults, name, enabled, successStatus = "published") {
-  if (platformResults?.[name]) return successStatus;
+  if (platformResults?.[name]) {
+    // TikTok direct post langsung publik -> "published". Inbox/draft -> "submitted".
+    if (name === "tiktok") {
+      return platformResults.tiktok?.mode === "direct" ? "published" : "submitted";
+    }
+    return successStatus;
+  }
   if (!enabled) return "disabled";
   if (name === "youtube" && platformResults?.dailyLimitReached?.youtube) return "daily_limit_reached";
   if (name === "youtube" && platformResults?.quotaExceeded?.youtube) return "quota_exceeded";
