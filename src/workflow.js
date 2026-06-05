@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { config, canPublish, shouldUploadToRemote } from "./config.js";
+import { config, canPublish, shouldUploadMediaToRemote } from "./config.js";
 import { ensureProjectDirs, patchItem, saveGeneratedJson } from "./storage.js";
 import { appendLog } from "./logger.js";
 import { appendHistory, publishedCountToday, queueSeriesSuccessCount, youtubePublishedCountToday } from "./history.js";
@@ -28,6 +28,7 @@ import {
   isAutomationSeriesVideo,
   queueSeriesTarget,
   scheduledClipsPerRun,
+  seriesClipsForRun,
   dedupeClipRanges,
   storedSeriesClipRanges
 } from "./queue-policy.js";
@@ -59,13 +60,17 @@ export async function runWorkflow(options = {}) {
 
   const remoteCheck = preflight.checks.find((check) => check.name === config.ftp.label);
   if (remoteCheck && !remoteCheck.ok && !remoteCheck.required) {
-    const driver = config.uploadDriver;
-    config.uploadDriver = "local";
-    await appendLog("remote_upload_disabled", {
-      driver,
+    // Hanya degradasi MEDIA upload (file besar). State sync JSON tetap jalan
+    // dengan retry sendiri agar progres anti-duplikasi tidak hilang ketika SFTP
+    // sempat timeout sesaat saat preflight tapi pulih sebelum run selesai.
+    config.remoteMediaDegraded = true;
+    await appendLog("remote_media_upload_disabled", {
+      driver: config.uploadDriver,
       reason: remoteCheck.detail || "remote storage preflight failed"
     });
-    console.warn(`${config.ftp.label} preflight warning; remote upload dinonaktifkan untuk run ini.`);
+    console.warn(`${config.ftp.label} preflight warning; media upload didegradasi untuk run ini, state sync tetap dicoba.`);
+  } else {
+    config.remoteMediaDegraded = false;
   }
 
   await downloadStateFromRemote().catch((error) => {
@@ -323,11 +328,27 @@ async function noVideoSelectedResult({ discoveryResult, failedSelections }) {
 }
 
 async function processSelectedWorkflow({ selection, options, scheduledDailyLimit, scheduledPostedToday, keepVideoQueued = false, preflight = null }) {
-  const runtimeVideo = options.useSubtitleHighlight === true
+  const baseVideo = options.useSubtitleHighlight === true
     ? { ...selection.video, use_subtitle_highlight: true }
-    : selection.video;
+    : { ...selection.video };
+
+  // Untuk link series terjadwal: render seluruh sisa klip dalam SATU proses clipper.
+  // Satu proses menjamin klip tidak saling tumpang tindih (anti-duplikat kokoh),
+  // dan link selesai dalam satu run sehingga tidak bergantung pada sinkronisasi
+  // state antar-run yang rawan gagal. Dibatasi juga oleh sisa slot harian agar
+  // tidak merender klip yang akan dibuang oleh MAX_SCHEDULED_POSTS_PER_DAY.
+  const isSeriesRun = options.scheduled === true && isAutomationSeriesVideo(baseVideo);
+  let seriesClipTarget = isSeriesRun ? seriesClipsForRun(baseVideo) : 0;
+  if (isSeriesRun && options.publish && scheduledDailyLimit > 0) {
+    const remainingDailySlots = Math.max(0, scheduledDailyLimit - scheduledPostedToday);
+    seriesClipTarget = Math.min(seriesClipTarget, remainingDailySlots);
+  }
+  if (isSeriesRun && seriesClipTarget > 0) {
+    baseVideo.clip_count = seriesClipTarget;
+  }
+
   const { theme, prompt } = selection;
-  const video = runtimeVideo;
+  const video = baseVideo;
   selection = { ...selection, video };
   const job = await createJobRecord(selection, { keepVideoStatus: keepVideoQueued });
   const maybeUpdateVideoStatus = async (status, patch) => {
@@ -361,7 +382,11 @@ async function processSelectedWorkflow({ selection, options, scheduledDailyLimit
       throw new Error("Clipper tidak menghasilkan file MP4 final.");
     }
 
-    const perRunClipLimit = options.scheduled ? scheduledClipsPerRun() : allOutputs.length;
+    // Series run: proses semua klip yang dirender (sudah dibatasi clip_count = sisa target).
+    // Non-series scheduled run tetap pakai SCHEDULED_CLIPS_PER_RUN.
+    const perRunClipLimit = options.scheduled
+      ? (isSeriesRun ? allOutputs.length : scheduledClipsPerRun())
+      : allOutputs.length;
     const remainingScheduledSlots = options.scheduled && options.publish && scheduledDailyLimit > 0
       ? Math.min(perRunClipLimit, Math.max(0, scheduledDailyLimit - scheduledPostedToday))
       : perRunClipLimit;
@@ -654,7 +679,7 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
     thumbnailUrl: "",
     metadataUrl: ""
   };
-  if (shouldUploadToRemote()) {
+  if (shouldUploadMediaToRemote()) {
     try {
       upload = await uploadJobFiles({
         job: storageJob,

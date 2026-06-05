@@ -105,14 +105,13 @@ on:
         default: ""
   schedule:
     # GitHub schedule uses UTC.
-    # Target 6 scheduled runs per hari, disebar dari pagi sampai malam WIB.
+    # Target 3 scheduled runs per hari. Tiap run series merender 3 klip sekaligus
+    # (1 link = 3 video). Run 1 = Link A (3 video), Run 2 = Link B (3 video) -> 6 video/hari.
+    # Run 3 = buffer retry; MAX_SCHEDULED_POSTS_PER_DAY=6 menjaga total tetap 6.
     # Menit dibuat ganjil agar tidak menabrak jam puncak cron GitHub.
-    - cron: "3 23 * * *"  # 06:03 WIB
-    - cron: "33 2 * * *"  # 09:33 WIB
-    - cron: "3 5 * * *"   # 12:03 WIB
-    - cron: "33 8 * * *"  # 15:33 WIB
-    - cron: "3 11 * * *"  # 18:03 WIB
-    - cron: "33 14 * * *" # 21:33 WIB
+    - cron: "3 23 * * *"  # 06:03 WIB - Link A (3 klip)
+    - cron: "3 5 * * *"   # 12:03 WIB - Link B (3 klip)
+    - cron: "3 11 * * *"  # 18:03 WIB - buffer retry sampai cap 6 tercapai
 
 concurrency:
   group: podcast-clipper-automation
@@ -125,7 +124,7 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 120
 
     env:
       LOCAL_PORT: 8788
@@ -285,7 +284,7 @@ jobs:
 
       PYTHON_CMD: python
       CLIPPER_ROOT: clipper
-      CLIPPER_TIMEOUT_SECONDS: ${{ secrets.CLIPPER_TIMEOUT_SECONDS || '2700' }}
+      CLIPPER_TIMEOUT_SECONDS: ${{ secrets.CLIPPER_TIMEOUT_SECONDS || '4200' }}
       CLIPPER_IDLE_TIMEOUT_SECONDS: ${{ secrets.CLIPPER_IDLE_TIMEOUT_SECONDS || '1200' }}
       MIN_CLIP_SECONDS: "40"
       MAX_CLIP_SECONDS: "60"
@@ -1060,7 +1059,7 @@ jobs:
 
       - name: Generate and publish
         if: ${{ github.event.inputs.publish_ready_only != 'true' }}
-        timeout-minutes: 45
+        timeout-minutes: 90
         env:
           EVENT_NAME: ${{ github.event_name }}
           THEME: ${{ github.event.inputs.theme || 'auto' }}

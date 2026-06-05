@@ -195,3 +195,14 @@ test("dedupeClipRanges removes overlapping duplicates and invalid ranges", async
     { start: 200, end: 260 }
   ]);
 });
+
+test("seriesClipsForRun renders the full target when fresh and only the remainder afterwards", async () => {
+  const { seriesClipsForRun } = await import("../src/queue-policy.js");
+
+  // Fresh link: render all 3 clips in one run.
+  assert.equal(seriesClipsForRun({ series_target_count: 3, series_success_count: 0 }), 3);
+  // Partial recovery: only 1 clip left after 2 successes.
+  assert.equal(seriesClipsForRun({ series_target_count: 3, series_success_count: 2 }), 1);
+  // Completed: nothing left to render.
+  assert.equal(seriesClipsForRun({ series_target_count: 3, series_success_count: 3 }), 0);
+});

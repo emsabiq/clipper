@@ -1,6 +1,7 @@
 export const DEFAULT_QUEUE_SERIES_TARGET_COUNT = 3;
 export const DEFAULT_AUTOMATION_QUEUE_LINK_LIMIT = 5;
 export const DEFAULT_SCHEDULED_CLIPS_PER_RUN = 1;
+export const DEFAULT_CLIP_COUNT = 1;
 
 function numberEnv(name, fallback, min = 0, max = 1000) {
   const value = Number(process.env[name]);
@@ -68,4 +69,12 @@ export function queueSeriesRemaining(video = {}, successCount = storedQueueSerie
 
 export function isQueueSeriesComplete(video = {}, successCount = storedQueueSeriesSuccessCount(video)) {
   return queueSeriesRemaining(video, successCount) <= 0;
+}
+
+// Jumlah klip yang harus dirender untuk satu link series dalam SATU run.
+// Saat fresh = full target (mis. 3); saat sebagian sudah sukses, hanya sisanya.
+// Merender semua klip sekaligus dalam satu proses clipper menjamin klip tidak
+// saling tumpang tindih tanpa bergantung pada sinkronisasi state antar-run.
+export function seriesClipsForRun(video = {}, successCount = storedQueueSeriesSuccessCount(video)) {
+  return queueSeriesRemaining(video, successCount);
 }
