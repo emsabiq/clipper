@@ -128,7 +128,6 @@ function buildConfig() {
     graphApiVersion: cleanText(process.env.GRAPH_API_VERSION || "v25.0"),
     apiCheckTimeoutMs: numberEnv("API_CHECK_TIMEOUT_SECONDS", 30) * 1000,
     remoteUploadRequired: boolEnv("REMOTE_UPLOAD_REQUIRED", false),
-    remoteMediaDegraded: false,
     instagram: {
       enabled: boolEnv("INSTAGRAM_UPLOAD_ENABLED", true),
       igUserId: cleanText(process.env.INSTAGRAM_IG_USER_ID),
@@ -273,13 +272,6 @@ export function shouldUploadToFtp() {
 
 export function shouldUploadToRemote() {
   return config.uploadDriver === "ftp" || config.uploadDriver === "sftp";
-}
-
-// Media (video/thumbnail) upload bisa didegradasi per-run saat remote storage
-// sempat gagal preflight, TANPA mematikan sinkronisasi state JSON yang kecil
-// dan kritikal untuk anti-duplikasi. State sync tetap memakai shouldUploadToRemote().
-export function shouldUploadMediaToRemote() {
-  return shouldUploadToRemote() && config.remoteMediaDegraded !== true;
 }
 
 export function canPublish() {

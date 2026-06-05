@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { config, canPublish, shouldUploadMediaToRemote } from "./config.js";
+import { config, canPublish, shouldUploadToRemote } from "./config.js";
 import { ensureProjectDirs, patchItem, saveGeneratedJson } from "./storage.js";
 import { appendLog } from "./logger.js";
 import { appendHistory, publishedCountToday, queueSeriesSuccessCount, youtubePublishedCountToday } from "./history.js";
@@ -60,17 +60,15 @@ export async function runWorkflow(options = {}) {
 
   const remoteCheck = preflight.checks.find((check) => check.name === config.ftp.label);
   if (remoteCheck && !remoteCheck.ok && !remoteCheck.required) {
-    // Hanya degradasi MEDIA upload (file besar). State sync JSON tetap jalan
-    // dengan retry sendiri agar progres anti-duplikasi tidak hilang ketika SFTP
-    // sempat timeout sesaat saat preflight tapi pulih sebelum run selesai.
-    config.remoteMediaDegraded = true;
-    await appendLog("remote_media_upload_disabled", {
+    // Jangan matikan media upload di sini. SFTP sering hanya timeout sesaat saat
+    // preflight (menit awal) tapi pulih saat upload sesungguhnya terjadi (setelah
+    // clipper, ~menit ke-20). Upload punya retry sendiri; biarkan dicoba di
+    // waktu naturalnya. State sync juga tetap dicoba dengan merge.
+    await appendLog("remote_preflight_warning", {
       driver: config.uploadDriver,
       reason: remoteCheck.detail || "remote storage preflight failed"
     });
-    console.warn(`${config.ftp.label} preflight warning; media upload didegradasi untuk run ini, state sync tetap dicoba.`);
-  } else {
-    config.remoteMediaDegraded = false;
+    console.warn(`${config.ftp.label} preflight warning; upload & state sync tetap dicoba dengan retry/merge.`);
   }
 
   await downloadStateFromRemote().catch((error) => {
@@ -679,7 +677,15 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
     thumbnailUrl: "",
     metadataUrl: ""
   };
-  if (shouldUploadMediaToRemote()) {
+  // YouTube tidak butuh public URL (upload file lokal). Semua sosmed butuh.
+  // Jadi melanjutkan tanpa public URL hanya masuk akal kalau YouTube memang
+  // akan dicoba di run ini. Kalau target hanya sosmed (mis. SAFE_PUBLISH_MODE=
+  // social_only atau YouTube kena quota), public URL wajib ada; kalau gagal,
+  // lempar error agar klip di-retry, bukan publish kosong.
+  const uploadPublishDecision = publishDecisionFromConfig();
+  const youtubeWillBeTried = uploadPublishDecision.platforms.youtube === true
+    && !(await youtubeQuotaCooldown("upload")).active;
+  if (shouldUploadToRemote()) {
     try {
       upload = await uploadJobFiles({
         job: storageJob,
@@ -690,7 +696,7 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
       const videoPublicOk = await validatePublicUrl(upload.videoUrl);
       if (!videoPublicOk) throw new Error(`Public video URL belum valid: ${upload.videoUrl}`);
     } catch (error) {
-      if (config.remoteUploadRequired || !config.youtube.enabled) throw error;
+      if (config.remoteUploadRequired || !youtubeWillBeTried) throw error;
       await appendLog("remote_upload_failed_skip", {
         job_id: storageJob.job_id,
         error: error.message
