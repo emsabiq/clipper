@@ -103,6 +103,31 @@ async function applyValidFallbackToken() {
   return null;
 }
 
+export async function applyInstagramPageTokenFallback() {
+  const pageFromUser = await getFacebookPageTokenFromUser();
+  const candidates = [
+    ["facebook_page_from_user_token", pageFromUser],
+    ["facebook_page_token", config.facebook.accessToken]
+  ];
+  const seen = new Set();
+
+  for (const [label, token] of candidates) {
+    if (!token || token === config.instagram.accessToken || seen.has(token)) continue;
+    seen.add(token);
+
+    try {
+      const validation = await validateTokenWithInstagram(token);
+      applyToken(token);
+      console.warn(`IG publish memakai fallback ${label} untuk run ini.`);
+      return validation;
+    } catch (error) {
+      console.warn(`IG publish fallback ${label} tidak valid: ${graphError(error).message}`);
+    }
+  }
+
+  return null;
+}
+
 async function debugToken() {
   if (!config.meta.appId || !config.meta.appSecret) return null;
 

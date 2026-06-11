@@ -1,6 +1,9 @@
 import axios from "axios";
 import { config } from "./config.js";
-import { ensureFreshInstagramToken } from "./instagram-token.js";
+import {
+  applyInstagramPageTokenFallback,
+  ensureFreshInstagramToken
+} from "./instagram-token.js";
 
 function apiUrl(apiPath) {
   return `https://graph.facebook.com/${config.graphApiVersion}/${apiPath}`;
@@ -40,6 +43,11 @@ function isRuploadProcessingFailure(error) {
     message.includes("Rupload gagal") ||
     message.toLowerCase().includes("request processing failed")
   );
+}
+
+export function isInstagramUserAccessRestricted(error) {
+  return error?.apiSubcode === 2207050 ||
+    /user access is restricted/i.test(String(error?.message || ""));
 }
 
 function getReelUploadMethod() {
@@ -460,10 +468,7 @@ async function publishReelViaResumable({ videoUrl, caption, coverUrl }) {
   };
 }
 
-export async function publishReel({ videoUrl, caption, coverUrl }) {
-  await ensureFreshInstagramToken();
-  assertInstagramConfig();
-
+async function publishReelWithCurrentToken({ videoUrl, caption, coverUrl }) {
   const method = getReelUploadMethod();
 
   console.log("IG GRAPH VERSION:", config.graphApiVersion);
@@ -505,5 +510,22 @@ export async function publishReel({ videoUrl, caption, coverUrl }) {
     });
 
     return publishReelViaResumable({ videoUrl, caption, coverUrl });
+  }
+}
+
+export async function publishReel({ videoUrl, caption, coverUrl }) {
+  await ensureFreshInstagramToken();
+  assertInstagramConfig();
+
+  try {
+    return await publishReelWithCurrentToken({ videoUrl, caption, coverUrl });
+  } catch (error) {
+    if (!isInstagramUserAccessRestricted(error)) throw error;
+
+    const fallback = await applyInstagramPageTokenFallback();
+    if (!fallback) throw error;
+
+    console.warn("IG user token dibatasi Meta; publish dicoba ulang memakai Page token.");
+    return publishReelWithCurrentToken({ videoUrl, caption, coverUrl });
   }
 }
