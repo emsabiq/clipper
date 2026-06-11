@@ -24,6 +24,7 @@ import { discoverAndQueueVideos } from "./video-discovery.js";
 import { applyVideoEffects } from "./video-effects.js";
 import { writeJobDiagnostic } from "./diagnostics.js";
 import { enabledPublishPlatformsFromConfig, selectPublishPlatforms } from "./publish-mode.js";
+import { metaInterClipDelayMs, waitForMetaInterClipDelay } from "./platform-delay.js";
 import {
   isAutomationSeriesVideo,
   queueSeriesTarget,
@@ -731,7 +732,8 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
       caption,
       upload,
       thumbnail,
-      publishDecision
+      publishDecision,
+      clipIndex
     });
     const primaryPublished = platformResults.hasAnySuccess;
     const youtubeQuotaExceeded = Boolean(platformResults.quotaExceeded?.youtube);
@@ -983,7 +985,15 @@ async function appendSafePublishModeSkips(jobId, publishDecision) {
   }
 }
 
-async function publishPlatforms({ job, output, caption, upload, thumbnail, publishDecision = publishDecisionFromConfig() }) {
+async function publishPlatforms({
+  job,
+  output,
+  caption,
+  upload,
+  thumbnail,
+  publishDecision = publishDecisionFromConfig(),
+  clipIndex = 1
+}) {
   const socialCaption = stripCaptionSourceCredit(caption, {
     sourceUrl: job.source_url
   });
@@ -1068,6 +1078,39 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail, publi
     }
   }
 
+  if (publishDecision.platforms.tiktok) {
+    platformResults.tiktok = await publishPlatform("tiktok", platformResults, job.job_id, async () => {
+      if (!upload.videoUrl) throw new Error("PUBLIC_BASE_URL/SFTP wajib valid sebelum publish TikTok.");
+      await updateJob(job.job_id, { tiktok_status: "processing", tiktok_error: "" });
+      return publishToTikTok({
+        videoUrl: upload.videoUrl,
+        videoPath: output.finalAbsPath,
+        caption: socialCaption
+      });
+    });
+  }
+
+  const metaDelayMs = metaInterClipDelayMs({
+    clipIndex,
+    platforms: publishDecision.platforms
+  });
+  if (metaDelayMs > 0) {
+    await appendLog("meta_inter_clip_delay", {
+      job_id: job.job_id,
+      clip_index: clipIndex,
+      delay_seconds: metaDelayMs / 1000,
+      platforms: ["facebook", "instagram", "threads"]
+        .filter((name) => publishDecision.platforms[name])
+    });
+    console.log(
+      `Jeda Meta ${metaDelayMs / 1000} detik sebelum FB/IG/Threads clip ${clipIndex}.`
+    );
+    await waitForMetaInterClipDelay({
+      clipIndex,
+      platforms: publishDecision.platforms
+    });
+  }
+
   if (publishDecision.platforms.facebook) {
     platformResults.facebook = await publishPlatform("facebook", platformResults, job.job_id, async () => {
       if (!upload.videoUrl) throw new Error("PUBLIC_BASE_URL/SFTP wajib valid sebelum publish Facebook.");
@@ -1115,18 +1158,6 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail, publi
         videoUrl: instagramVideo.videoUrl,
         caption: socialCaption,
         coverUrl: instagramCoverUrl
-      });
-    });
-  }
-
-  if (publishDecision.platforms.tiktok) {
-    platformResults.tiktok = await publishPlatform("tiktok", platformResults, job.job_id, async () => {
-      if (!upload.videoUrl) throw new Error("PUBLIC_BASE_URL/SFTP wajib valid sebelum publish TikTok.");
-      await updateJob(job.job_id, { tiktok_status: "processing", tiktok_error: "" });
-      return publishToTikTok({
-        videoUrl: upload.videoUrl,
-        videoPath: output.finalAbsPath,
-        caption: socialCaption
       });
     });
   }
