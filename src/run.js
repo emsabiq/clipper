@@ -1,4 +1,5 @@
 import { config } from "./config.js";
+import { isWorkflowFailureResult } from "./run-result.js";
 import { runWorkflow } from "./workflow.js";
 
 function argValue(name, fallback = "") {
@@ -46,6 +47,9 @@ if (hasArg("--dry-run")) {
 runWorkflow(options)
   .then((result) => {
     console.log(JSON.stringify(result, null, 2));
+    if (isWorkflowFailureResult(result)) {
+      process.exitCode = 1;
+    }
   })
   .catch((error) => {
     console.error(error);

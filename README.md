@@ -1412,7 +1412,7 @@ BACKGROUND_MUSIC_ORIGINAL_VOLUME=1.0
 
 YTDLP_COOKIES_FILE=cookies.txt
 YTDLP_COOKIES_FROM_BROWSER=
-YTDLP_JS_RUNTIMES=node
+YTDLP_JS_RUNTIMES=deno
 YTDLP_REMOTE_COMPONENTS=ejs:github
 
 SUBTITLE_OFFSET_SECONDS=0
@@ -1559,6 +1559,7 @@ Ambil cookies dari browser lokal.
 #### `YTDLP_JS_RUNTIMES`
 
 Runtime JavaScript untuk yt-dlp.
+Gunakan Deno 2.3+; workflow GitHub Actions memasangnya otomatis.
 
 #### `YTDLP_REMOTE_COMPONENTS`
 

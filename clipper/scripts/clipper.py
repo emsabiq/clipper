@@ -326,7 +326,7 @@ def ytdlp_common_args():
     cookies_browser = os.environ.get("YTDLP_COOKIES_FROM_BROWSER", "").strip()
     user_agent = os.environ.get("YTDLP_USER_AGENT", "").strip()
     referer = os.environ.get("YTDLP_REFERER", "").strip()
-    js_runtimes = os.environ.get("YTDLP_JS_RUNTIMES", "node").strip()
+    js_runtimes = os.environ.get("YTDLP_JS_RUNTIMES", "deno").strip()
     remote_components = os.environ.get("YTDLP_REMOTE_COMPONENTS", "ejs:github").strip()
     sleep_requests = os.environ.get("YTDLP_SLEEP_REQUESTS", "").strip()
     sleep_interval = os.environ.get("YTDLP_SLEEP_INTERVAL", "").strip()

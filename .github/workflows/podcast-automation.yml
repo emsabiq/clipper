@@ -379,7 +379,7 @@ jobs:
       MIN_VIRAL_SCORE_TO_PUBLISH: ${{ secrets.MIN_VIRAL_SCORE_TO_PUBLISH || '55' }}
       FORCE_PUBLISH: ${{ secrets.FORCE_PUBLISH || '1' }}
 
-      YTDLP_JS_RUNTIMES: node
+      YTDLP_JS_RUNTIMES: deno
       YTDLP_REMOTE_COMPONENTS: ejs:github
       YTDLP_COOKIES_TXT: ${{ secrets.YTDLP_COOKIES_TXT }}
       YTDLP_USER_AGENT: ${{ secrets.YTDLP_USER_AGENT }}
@@ -411,6 +411,11 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: package-lock.json
+
+      - name: Setup Deno for yt-dlp
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
 
       - name: Restore Node modules cache
         id: node-modules-cache
@@ -896,8 +901,10 @@ jobs:
       - name: Update yt-dlp
         shell: bash
         run: |
-          python -m pip install --upgrade --prefer-binary yt-dlp
+          python -m pip install --upgrade --prefer-binary "yt-dlp[default]"
           yt-dlp --version
+          deno --version
+          python -m pip show yt-dlp-ejs > /dev/null
 
       - name: Write YouTube cookies
         if: ${{ env.YTDLP_COOKIES_TXT != '' }}
