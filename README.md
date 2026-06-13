@@ -838,6 +838,7 @@ VIDEO_EFFECT_PRESET=veryfast
 THUMBNAIL_PILL_TEXT=Podcast | Highlight | Viral
 THUMBNAIL_INTRO_ENABLED=true
 THUMBNAIL_INTRO_SECONDS=0.9
+THUMBNAIL_IMAGE_INTRO_ENABLED=true
 THUMBNAIL_TTS_ENABLED=true
 THUMBNAIL_TTS_PROVIDER=openai
 THUMBNAIL_TTS_FALLBACK_PROVIDER=none
@@ -1010,6 +1011,10 @@ Menambahkan thumbnail sebagai frame pembuka pendek di video final. Default: `tru
 #### `THUMBNAIL_INTRO_SECONDS`
 
 Durasi frame pembuka thumbnail saat TTS tidak aktif atau gagal. Default: `0.9`.
+
+#### `THUMBNAIL_IMAGE_INTRO_ENABLED`
+
+Memakai file thumbnail final sebagai frame pertama video, bukan mengambil freeze frame dari video sumber. Default produksi: `true`, supaya preview awal YouTube tidak hitam dan visual pembuka sama dengan custom thumbnail.
 
 #### `THUMBNAIL_TTS_ENABLED`
 

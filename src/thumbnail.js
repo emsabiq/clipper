@@ -26,9 +26,6 @@ const TEXT_OUTLINE_OPACITY = clampOpacity(process.env.THUMBNAIL_TEXT_OUTLINE_OPA
 const JPEG_Q = process.env.THUMBNAIL_JPEG_Q || "1";
 const INTRO_SECONDS = clampSeconds(process.env.THUMBNAIL_INTRO_SECONDS, 0.9);
 const INTRO_FREEZE_SEEK_SECONDS = clampDuration(process.env.THUMBNAIL_INTRO_FREEZE_SEEK_SECONDS, 0.8, 0, 5);
-const INTRO_VISUAL_MODE = String(process.env.THUMBNAIL_IMAGE_INTRO_ENABLED || "").toLowerCase() === "true"
-  ? "thumbnail"
-  : "video";
 const TTS_PAD_SECONDS = clampDuration(process.env.THUMBNAIL_TTS_PAD_SECONDS, 0, 0, 2);
 const TTS_MAX_SECONDS = clampDuration(process.env.THUMBNAIL_TTS_MAX_SECONDS, 12, 1, 30);
 const DEFAULT_TRANSITION_ASSET = "assets/branding/transisi-thumbnail-to-content.mp4";
@@ -122,7 +119,8 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
   if (!boolValue(process.env.THUMBNAIL_INTRO_ENABLED, true)) return null;
   if (!videoPath) return null;
   if (!await fileExists(videoPath)) return null;
-  if (INTRO_VISUAL_MODE === "thumbnail" && (!thumbnailPath || !await fileExists(thumbnailPath))) return null;
+  const introVisualMode = thumbnailIntroVisualMode();
+  if (introVisualMode === "thumbnail" && (!thumbnailPath || !await fileExists(thumbnailPath))) return null;
 
   await fs.mkdir(config.generatedVideoDir, { recursive: true });
   const introPath = path.join(config.generatedVideoDir, `${job.job_id}-thumb-intro.mp4`);
@@ -150,7 +148,8 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
   const visual = await resolveIntroVisual({
     videoPath,
     thumbnailPath,
-    outputPath: introFramePath
+    outputPath: introFramePath,
+    visualMode: introVisualMode
   });
 
   const audioInputArgs = speech?.path
@@ -254,8 +253,12 @@ export async function prependThumbnailIntro({ job, videoPath, thumbnailPath, tex
   };
 }
 
-async function resolveIntroVisual({ videoPath, thumbnailPath, outputPath }) {
-  if (INTRO_VISUAL_MODE === "thumbnail" && thumbnailPath && await fileExists(thumbnailPath)) {
+export function thumbnailIntroVisualMode(value = process.env.THUMBNAIL_IMAGE_INTRO_ENABLED) {
+  return boolValue(value, true) ? "thumbnail" : "video";
+}
+
+async function resolveIntroVisual({ videoPath, thumbnailPath, outputPath, visualMode }) {
+  if (visualMode === "thumbnail" && thumbnailPath && await fileExists(thumbnailPath)) {
     return { path: thumbnailPath, mode: "thumbnail" };
   }
 
