@@ -1016,6 +1016,14 @@ Durasi frame pembuka thumbnail saat TTS tidak aktif atau gagal. Default: `0.9`.
 
 Memakai file thumbnail final sebagai frame pertama video, bukan mengambil freeze frame dari video sumber. Default produksi: `true`, supaya preview awal YouTube tidak hitam dan visual pembuka sama dengan custom thumbnail.
 
+#### `THUMBNAIL_USE_SOURCE_IMAGE`
+
+Mengisi panel tengah thumbnail dengan cuplikan dari sekitar pertengahan video. Default produksi: `true`.
+
+#### `THUMBNAIL_MIN_LUMA`
+
+Batas luminance minimum saat memilih cuplikan thumbnail. Sistem mencoba beberapa frame di sekitar 50% durasi dan mengutamakan frame yang tidak gelap. Default: `28`.
+
 #### `THUMBNAIL_TTS_ENABLED`
 
 Membuat suara pembuka dari teks thumbnail memakai provider TTS, lalu menahan thumbnail sampai audio selesai. Default: `true`.

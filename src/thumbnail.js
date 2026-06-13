@@ -35,6 +35,7 @@ const TRANSITION_KEY_COLOR = sanitizeColor(process.env.THUMBNAIL_TRANSITION_KEY_
 const TRANSITION_KEY_SIMILARITY = clampNumber(process.env.THUMBNAIL_TRANSITION_KEY_SIMILARITY, 0.18, 0, 1);
 const TRANSITION_KEY_BLEND = clampNumber(process.env.THUMBNAIL_TRANSITION_KEY_BLEND, 0.04, 0, 1);
 const TRANSITION_SPEED = clampNumber(process.env.THUMBNAIL_TRANSITION_SPEED, 1.28, 0.5, 3);
+const THUMBNAIL_MIN_LUMA = clampNumber(process.env.THUMBNAIL_MIN_LUMA, 28, 0, 255);
 const rendererPath = path.join(config.srcDir, "branding-renderer.py");
 
 export async function generateThumbnail({ job, videoPath, text }) {
@@ -73,7 +74,7 @@ export async function generateThumbnail({ job, videoPath, text }) {
       "--pill", process.env.THUMBNAIL_PILL_TEXT || "Podcast | Highlight | Viral"
     ]);
     await fs.rm(basePath, { force: true }).catch(() => {});
-    return { path: outputPath, filename, text: displayText };
+    return { path: outputPath, filename, text: displayText, frameTimestamp: seek };
   } catch (error) {
     await fs.rm(basePath, { force: true }).catch(() => {});
     console.warn(`Thumbnail renderer fallback dipakai: ${error.message}`);
@@ -534,9 +535,82 @@ function probeDurationSeconds(videoPath) {
 async function pickSeekTimestamp(videoPath) {
   const fallback = "00:00:03";
   const duration = await probeDurationSeconds(videoPath);
-  if (!duration || duration <= 2) return fallback;
-  const seconds = Math.max(2, Math.min(duration - 2, duration * 0.3));
-  return formatTimestamp(seconds);
+  if (!duration) return fallback;
+  if (duration <= 2) return formatTimestamp(Math.max(0.1, duration * 0.5));
+
+  const candidates = thumbnailSeekCandidates(duration);
+  const measured = [];
+  for (const candidate of candidates) {
+    const luma = await probeFrameLuma(videoPath, candidate.seconds);
+    if (luma !== null) measured.push({ ...candidate, luma });
+  }
+
+  const selected = selectThumbnailFrame(measured, THUMBNAIL_MIN_LUMA)
+    || candidates[0];
+  if (selected?.luma !== undefined) {
+    console.log(`Frame thumbnail dipilih pada ${formatTimestamp(selected.seconds)} (luma ${selected.luma.toFixed(1)}).`);
+  }
+  return formatTimestamp(selected?.seconds ?? duration * 0.5);
+}
+
+export function thumbnailSeekCandidates(duration) {
+  const total = Number(duration);
+  if (!Number.isFinite(total) || total <= 2) return [];
+  const margin = Math.min(2, Math.max(0.2, total * 0.06));
+  const minSeconds = margin;
+  const maxSeconds = Math.max(minSeconds, total - margin);
+  const ratios = [0.5, 0.44, 0.56, 0.38, 0.62];
+  const seen = new Set();
+
+  return ratios.flatMap((ratio) => {
+    const seconds = Math.min(maxSeconds, Math.max(minSeconds, total * ratio));
+    const key = seconds.toFixed(3);
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [{ seconds, ratio }];
+  });
+}
+
+export function selectThumbnailFrame(candidates, minLuma = 28) {
+  if (!Array.isArray(candidates) || candidates.length === 0) return null;
+  const valid = candidates.filter((candidate) => Number.isFinite(candidate?.luma));
+  if (valid.length === 0) return null;
+  const readable = valid.filter((candidate) => candidate.luma >= minLuma);
+  const pool = readable.length > 0 ? readable : valid;
+
+  return [...pool].sort((left, right) => {
+    const leftScore = left.luma - Math.abs((left.ratio ?? 0.5) - 0.5) * 12;
+    const rightScore = right.luma - Math.abs((right.ratio ?? 0.5) - 0.5) * 12;
+    return rightScore - leftScore;
+  })[0];
+}
+
+function probeFrameLuma(videoPath, seconds) {
+  return new Promise((resolve) => {
+    const child = spawn("ffmpeg", [
+      "-hide_banner",
+      "-loglevel", "info",
+      "-ss", formatTimestamp(seconds),
+      "-i", videoPath,
+      "-frames:v", "1",
+      "-vf", "scale=160:-2,signalstats,metadata=print",
+      "-f", "null",
+      "-"
+    ], { windowsHide: true });
+    let output = "";
+    child.stdout.on("data", (chunk) => {
+      output += chunk.toString("utf8");
+    });
+    child.stderr.on("data", (chunk) => {
+      output += chunk.toString("utf8");
+    });
+    child.on("error", () => resolve(null));
+    child.on("close", () => {
+      const matches = [...output.matchAll(/lavfi\.signalstats\.YAVG=([0-9.]+)/g)];
+      const value = matches.length > 0 ? Number(matches.at(-1)[1]) : NaN;
+      resolve(Number.isFinite(value) ? value : null);
+    });
+  });
 }
 
 async function fileExists(filePath) {

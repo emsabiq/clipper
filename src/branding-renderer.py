@@ -4,7 +4,7 @@ import re
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageOps
 
 
 def int_env(name, fallback):
@@ -38,6 +38,14 @@ PODFLASK_TITLE_WIDTH = int_env("PODFLASK_TITLE_WIDTH", 904)
 PODFLASK_TITLE_HEIGHT = int_env("PODFLASK_TITLE_HEIGHT", 286)
 PODFLASK_TITLE_MAX_SIZE = int_env("PODFLASK_TITLE_MAX_SIZE", 94)
 PODFLASK_TITLE_MIN_SIZE = int_env("PODFLASK_TITLE_MIN_SIZE", 48)
+THUMBNAIL_CONTENT_X = int_env("THUMBNAIL_CONTENT_X", 50)
+THUMBNAIL_CONTENT_Y = int_env("THUMBNAIL_CONTENT_Y", 243)
+THUMBNAIL_CONTENT_WIDTH = int_env("THUMBNAIL_CONTENT_WIDTH", 986)
+THUMBNAIL_CONTENT_HEIGHT = int_env("THUMBNAIL_CONTENT_HEIGHT", 796)
+THUMBNAIL_SOURCE_CROP_X = int_env("THUMBNAIL_SOURCE_CROP_X", 50)
+THUMBNAIL_SOURCE_CROP_Y = int_env("THUMBNAIL_SOURCE_CROP_Y", 243)
+THUMBNAIL_SOURCE_CROP_WIDTH = int_env("THUMBNAIL_SOURCE_CROP_WIDTH", 986)
+THUMBNAIL_SOURCE_CROP_HEIGHT = int_env("THUMBNAIL_SOURCE_CROP_HEIGHT", 796)
 TITLE_FRAME_ASSET = os.environ.get("THUMBNAIL_TITLE_FRAME_ASSET", "assets/branding/framejudulnew.png")
 TITLE_FRAME_SOURCE_ASSET = os.environ.get("THUMBNAIL_TITLE_FRAME_SOURCE_ASSET", "assets/branding/framejudulnew-source.png")
 TITLE_FRAME_WIDTH = int_env("THUMBNAIL_TITLE_FRAME_WIDTH", 940)
@@ -608,7 +616,7 @@ def save_jpeg_under_limit(image, output):
 
 def render_thumbnail(args):
     title = clean_title(args.title)
-    if not bool_env("THUMBNAIL_USE_SOURCE_IMAGE", False):
+    if not bool_env("THUMBNAIL_USE_SOURCE_IMAGE", True):
         canvas = load_podflask_frame(transparent_video=False)
         if canvas is None:
             canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (*BLACK, 255))
@@ -619,58 +627,28 @@ def render_thumbnail(args):
         return
 
     base = Image.open(args.input).convert("RGB").resize((CANVAS_W, CANVAS_H), Image.Resampling.LANCZOS)
-    base = ImageEnhance.Contrast(base).enhance(1.08)
-    base = ImageEnhance.Color(base).enhance(1.10)
-    canvas = base.convert("RGBA")
-    add_vignette(canvas)
-    draw = ImageDraw.Draw(canvas)
+    crop_left = max(0, min(CANVAS_W - 1, THUMBNAIL_SOURCE_CROP_X))
+    crop_top = max(0, min(CANVAS_H - 1, THUMBNAIL_SOURCE_CROP_Y))
+    crop_right = max(crop_left + 1, min(CANVAS_W, crop_left + THUMBNAIL_SOURCE_CROP_WIDTH))
+    crop_bottom = max(crop_top + 1, min(CANVAS_H, crop_top + THUMBNAIL_SOURCE_CROP_HEIGHT))
+    source = base.crop((crop_left, crop_top, crop_right, crop_bottom))
+    source = ImageOps.fit(
+        source,
+        (THUMBNAIL_CONTENT_WIDTH, THUMBNAIL_CONTENT_HEIGHT),
+        method=Image.Resampling.LANCZOS,
+        centering=(0.5, 0.5),
+    )
+    source = ImageEnhance.Contrast(source).enhance(1.08)
+    source = ImageEnhance.Color(source).enhance(1.10)
 
-    title_frame, title_frame_source_size = load_thumbnail_title_frame()
-    if title_frame:
-        frame_w, frame_h = title_frame.size
-        frame_x = (CANVAS_W - frame_w) // 2
-        frame_y = max(40, min(CANVAS_H - frame_h - 80, TITLE_FRAME_TOP))
-        rect = scaled_title_text_rect(frame_x, frame_y, title_frame.size, title_frame_source_size)
-        canvas.alpha_composite(title_frame, (frame_x, frame_y))
-        max_text_width = rect[2] - rect[0]
-        lines, font, size, line_gap, heights, total_h = fit_title_layout(
-            draw,
-            title,
-            rect,
-            max_text_width,
-            max_size=70,
-            min_size=30,
-            vertical_padding=8,
-        )
+    canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (*BLACK, 255))
+    canvas.alpha_composite(source.convert("RGBA"), (THUMBNAIL_CONTENT_X, THUMBNAIL_CONTENT_Y))
+    frame = load_podflask_frame(transparent_video=True)
+    if frame is None:
+        draw_podcast_reference_layout(canvas, title, transparent_video=True)
     else:
-        rect = (130, 880, 950, 1174)
-        add_glow(canvas, rect, 42, GOLD, 135)
-        draw_transparent_panel(draw, rect, 42, 142)
-        draw_highlight(canvas, rect)
-        max_text_width = (rect[2] - rect[0]) - 118
-        lines, font, size, line_gap, heights, total_h = fit_title_layout(draw, title, rect, max_text_width)
-
-    y = rect[1] + (rect[3] - rect[1] - total_h) // 2 - 4
-    for index, line in enumerate(lines):
-        color = WHITE if index == 0 else GOLD
-        width, height = text_size(draw, line, font, 4)
-        draw.text(
-            (max(rect[0] + 54, min((CANVAS_W - width) / 2, rect[2] - 54 - width)), y),
-            line,
-            font=font,
-            fill=color,
-            stroke_width=5,
-            stroke_fill=(0, 0, 0, 235),
-        )
-        y += height + line_gap
-
-    if not title_frame:
-        pill = clean_text(args.pill or os.environ.get("THUMBNAIL_PILL_TEXT"), "Podcast | Highlight | Viral")
-        pill_font = load_font(29)
-        pill_w, pill_h = text_size(draw, pill, pill_font, 1)
-        pill_rect = (150, 1202, min(930, 150 + pill_w + 42), 1256)
-        draw.rounded_rectangle(pill_rect, radius=13, outline=(255, 255, 255, 120), width=2)
-        draw.text((pill_rect[0] + 21, pill_rect[1] + 10), pill, font=pill_font, fill=(245, 245, 245), stroke_width=2, stroke_fill=(0, 0, 0, 210))
+        canvas.alpha_composite(frame)
+        draw_podflask_title(canvas, title)
 
     save_jpeg_under_limit(canvas, args.output)
 
